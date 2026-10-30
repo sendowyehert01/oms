@@ -35,7 +35,6 @@ Stop both processes with Ctrl+C. Restart this command after changing .env.
 - resources/css/app.css imports Tailwind and scans Blade views.
 - vite.config.js configures the stylesheet build and browser refresh.
 - database/migrations contains the four order management migrations.
-- ai-files/database-schema.md describes the database fields and relationships.
 
 Sessions and cache use files. Jobs run synchronously, so development does not start a queue worker.
 
