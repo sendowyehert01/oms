@@ -8,6 +8,9 @@
         <title>{{ $title }} · OMS</title>
 
         @vite('resources/css/app.css')
+        @if (request()->routeIs('orders.create'))
+            @vite('resources/js/create-order.js')
+        @endif
     </head>
     <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
         <a href="#main-content" class="sr-only rounded-lg bg-indigo-700 p-3 text-white focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50">
