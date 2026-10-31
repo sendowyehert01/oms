@@ -1,6 +1,6 @@
 <?php
 
-test('the home page displays hello world without application tables', function (): void {
+test('the home page displays hello lord without application tables', function (): void {
     config([
         'session.driver' => 'file',
         'cache.default' => 'file',
@@ -9,5 +9,5 @@ test('the home page displays hello world without application tables', function (
     $response = $this->get('/');
 
     $response->assertOk()
-        ->assertSeeInOrder(['<body', 'Hello World', '</body>'], false);
+        ->assertSeeInOrder(['<body', 'Hello Lord', '</body>'], false);
 });
