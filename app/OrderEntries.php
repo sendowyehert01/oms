@@ -94,6 +94,33 @@ class OrderEntries
         ];
     }
 
+    public function hasCustomers(): bool
+    {
+        return Schema::hasTable('customers') && DB::table('customers')->exists();
+    }
+
+    /**
+     * @return array{status: 'deleted'|'missing'|'protected', number?: string}
+     */
+    public function delete(int $orderId): array
+    {
+        return DB::transaction(function () use ($orderId): array {
+            $order = DB::table('orders')->where('id', $orderId)->lockForUpdate()->first(['id', 'order_date']);
+
+            if ($order === null) {
+                return ['status' => 'missing'];
+            }
+
+            if (DB::table('payments')->where('order_id', $orderId)->exists()) {
+                return ['status' => 'protected'];
+            }
+
+            DB::table('orders')->where('id', $orderId)->delete();
+
+            return ['status' => 'deleted', 'number' => $this->number((int) $order->id, $order->order_date)];
+        });
+    }
+
     /**
      * @param  array{submission_key: string, customer_id?: int|string|null, customer_name?: string, contact_person?: string, address?: string, contact_number?: string, order_date: string, due_date: string, status: string, items: array<int, array{product_name: string, quantity: int|string, unit_price: int|float|string}>}  $data
      */

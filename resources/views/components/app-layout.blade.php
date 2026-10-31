@@ -11,6 +11,10 @@
         @if (request()->routeIs('orders.create'))
             @vite('resources/js/create-order.js')
         @endif
+        @if (request()->routeIs('orders.index'))
+            <meta name="csrf-token" content="{{ csrf_token() }}">
+            @vite('resources/js/delete-order.js')
+        @endif
         @if (request()->routeIs('orders.index', 'orders.show', 'orders.samples.show'))
             @vite('resources/js/order-navigation.js')
         @endif
