@@ -38,6 +38,22 @@ Stop both processes with Ctrl+C. Restart this command after changing .env.
 
 Sessions and cache use files. Jobs run synchronously, so development does not start a queue worker.
 
+## Render testing deployment
+
+This repository includes a Render Blueprint for a free Docker web service and a free PostgreSQL database, both in Singapore. The Docker image uses PHP 8.5 and Apache, installs production Composer dependencies, and builds the Vite assets.
+
+1. Merge the deployment configuration into `main`.
+2. In Render, select **New → Blueprint** and connect this GitHub repository.
+3. Select the `main` branch and use `render.yaml` as the Blueprint file.
+4. Confirm that `oms-testing` and `oms-testing-db` both use the **Free** plan, then create the Blueprint.
+5. Wait for both services to deploy, then open the web service's public URL and visit `/orders` to test the app.
+
+The Blueprint generates an encryption secret and supplies the database's internal connection string as `DB_URL`. The startup script converts the generated secret into Laravel's `APP_KEY` format and derives `APP_URL` from Render's public URL. Keep the encryption secret stable across redeploys.
+
+Database migrations and Laravel cache warmup run when the container starts because free web services do not support pre-deploy commands. Apache serves only `public/` and listens on Render's `PORT`. Render monitors `/up`, and the application trusts the proxy's HTTPS headers. Sessions use the PostgreSQL `sessions` table, while temporary cache files stay inside the container.
+
+The free web service sleeps after 15 minutes of inactivity. The free PostgreSQL database expires after 30 days and has a 1 GB limit. This configuration is for testing; anyone with the app link can create or delete orders. The Blueprint does not copy your local MySQL data or seed the remote database.
+
 ## Verification
 
 ~~~sh
