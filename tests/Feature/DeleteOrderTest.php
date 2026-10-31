@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Payment;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
@@ -16,14 +20,14 @@ beforeEach(function (): void {
 
 function createDeleteOrderFixture(?int $customerId = null, ?int $orderId = null, string $customerName = 'Acme Packaging'): int
 {
-    $customerId ??= DB::table('customers')->insertGetId([
+    $customerId ??= Customer::factory()->create([
         'company_name' => $customerName,
         'contact_person' => 'Alex Cruz',
         'address' => '123 Market Street',
         'contact_number' => '09123456789',
-    ]);
+    ])->id;
 
-    $orderId = DB::table('orders')->insertGetId(array_filter([
+    $order = Order::factory()->create(array_filter([
         'id' => $orderId,
         'customer_id' => $customerId,
         'order_date' => '2026-10-31',
@@ -31,12 +35,14 @@ function createDeleteOrderFixture(?int $customerId = null, ?int $orderId = null,
         'status' => 'Pending',
     ], fn (int|string|null $value): bool => $value !== null));
 
-    DB::table('order_items')->insert([
-        ['order_id' => $orderId, 'product_name' => 'Plastic bags', 'quantity' => 2, 'unit_price' => '9.95'],
-        ['order_id' => $orderId, 'product_name' => 'Zip bags', 'quantity' => 3, 'unit_price' => '3.10'],
-    ]);
+    foreach ([
+        ['product_name' => 'Plastic bags', 'quantity' => 2, 'unit_price' => '9.95'],
+        ['product_name' => 'Zip bags', 'quantity' => 3, 'unit_price' => '3.10'],
+    ] as $item) {
+        OrderItem::factory()->for($order)->create($item);
+    }
 
-    return $orderId;
+    return $order->id;
 }
 
 test('saved orders have delete actions preserving the list context and an accessible confirmation dialog', function (): void {
@@ -98,7 +104,7 @@ test('confirmed deletion removes only the selected order and its items while ret
 
 test('orders with payments return 409 and retain their order items customer and payment', function (): void {
     $orderId = createDeleteOrderFixture();
-    DB::table('payments')->insert(['order_id' => $orderId, 'payment_date' => '2026-10-31', 'amount' => '10.00', 'payment_type' => 'Cash']);
+    Payment::factory()->create(['order_id' => $orderId, 'payment_date' => '2026-10-31', 'amount' => '10.00', 'payment_type' => 'Cash']);
 
     $response = $this->deleteJson(route('orders.destroy', ['order' => $orderId]), ['confirmed' => true]);
 

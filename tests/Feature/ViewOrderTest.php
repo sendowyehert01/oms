@@ -1,8 +1,10 @@
 <?php
 
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\OrderItem;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Schema;
 
@@ -19,15 +21,14 @@ beforeEach(function (): void {
  */
 function createViewOrderFixture(array $customerAttributes = [], array $orderAttributes = [], ?array $items = null): int
 {
-    $customerId = DB::table('customers')->insertGetId(array_replace([
+    $customer = Customer::factory()->create(array_replace([
         'company_name' => 'Acme Packaging',
         'contact_person' => 'Alex Cruz',
         'address' => '123 Market Street',
         'contact_number' => '09123456789',
     ], $customerAttributes));
 
-    $orderId = DB::table('orders')->insertGetId(array_replace([
-        'customer_id' => $customerId,
+    $order = Order::factory()->for($customer)->create(array_replace([
         'order_date' => '2026-10-31',
         'due_date' => '2026-11-07',
         'status' => 'In production',
@@ -37,10 +38,10 @@ function createViewOrderFixture(array $customerAttributes = [], array $orderAttr
         ['product_name' => 'Plastic bags', 'quantity' => 2, 'unit_price' => '9.95'],
         ['product_name' => 'Zip bags', 'quantity' => 3, 'unit_price' => '3.10'],
     ] as $item) {
-        DB::table('order_items')->insert(['order_id' => $orderId] + $item);
+        OrderItem::factory()->for($order)->create($item);
     }
 
-    return $orderId;
+    return $order->id;
 }
 
 test('each saved order has a view link with the current list search and page', function (): void {
@@ -93,13 +94,12 @@ test('details display the selected order customer and all its item prices subtot
 
 test('items from another order of the same customer are excluded', function (): void {
     $orderId = createViewOrderFixture();
-    $customerId = DB::table('orders')->where('id', $orderId)->value('customer_id');
-    $otherOrderId = DB::table('orders')->insertGetId([
-        'customer_id' => $customerId,
+    $customer = Order::query()->findOrFail($orderId)->customer;
+    $otherOrder = Order::factory()->for($customer)->create([
         'order_date' => '2026-10-30',
         'due_date' => '2026-11-10',
     ]);
-    DB::table('order_items')->insert(['order_id' => $otherOrderId, 'product_name' => 'Another order item', 'quantity' => 500, 'unit_price' => '4.00']);
+    OrderItem::factory()->for($otherOrder)->create(['product_name' => 'Another order item', 'quantity' => 500, 'unit_price' => '4.00']);
 
     $response = $this->get(route('orders.show', ['order' => $orderId]));
 

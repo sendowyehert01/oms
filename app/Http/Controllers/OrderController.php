@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreOrderRequest;
+use App\Models\Customer;
+use App\Models\Order;
 use App\OrderEntries;
 use App\SampleOrders;
 use Illuminate\Database\QueryException;
@@ -11,7 +13,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
@@ -55,7 +56,7 @@ class OrderController extends Controller
 
     public function create(): View
     {
-        $customers = DB::table('customers')->select('id', 'company_name')->orderBy('company_name')->get();
+        $customers = Customer::query()->select('id', 'company_name')->orderBy('company_name')->get();
         $statuses = OrderEntries::STATUSES;
         $oldSubmissionKey = old('submission_key');
         $submissionKey = is_string($oldSubmissionKey) && Str::isUuid($oldSubmissionKey)
@@ -69,7 +70,7 @@ class OrderController extends Controller
     {
         $data = $request->validated();
         $orderId = $orderEntries->create($data);
-        $orderDate = DB::table('orders')->where('id', $orderId)->value('order_date');
+        $orderDate = Order::query()->findOrFail($orderId)->order_date->toDateString();
         $orderNumber = $orderEntries->number($orderId, $orderDate);
 
         return to_route('orders.index')->with('success', 'Order '.$orderNumber.' created successfully.');

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Customer;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
@@ -88,7 +89,7 @@ test('creating an order saves its customer and items and redirects to the update
 
 test('an existing customer can receive another order without creating or changing their customer record', function (): void {
     $this->post(route('orders.store'), validCreateOrderData())->assertRedirectToRoute('orders.index');
-    $customerId = DB::table('customers')->value('id');
+    $customerId = Customer::query()->value('id');
 
     $response = $this->post(route('orders.store'), validCreateOrderData([
         'customer_id' => $customerId,

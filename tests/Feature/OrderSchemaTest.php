@@ -1,8 +1,12 @@
 <?php
 
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Payment;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
-use Illuminate\Support\Facades\DB;
 
 pest()->use(DatabaseMigrations::class);
 
@@ -11,36 +15,33 @@ pest()->use(DatabaseMigrations::class);
  */
 function createOrderSchemaFixture(): array
 {
-    $customerId = DB::table('customers')->insertGetId([
+    $customer = Customer::factory()->create([
         'company_name' => 'Example Packaging Customer',
         'contact_person' => 'Alex Cruz',
         'address' => '123 Market Street',
         'contact_number' => '09123456789',
     ]);
 
-    $orderId = DB::table('orders')->insertGetId([
-        'customer_id' => $customerId,
+    $order = Order::factory()->for($customer)->create([
         'order_date' => '2026-10-30',
         'due_date' => '2026-11-29',
     ]);
 
-    return ['customer_id' => $customerId, 'order_id' => $orderId];
+    return ['customer_id' => $customer->id, 'order_id' => $order->id];
 }
 
 test('an order can store several packaging items and payment entries', function (): void {
     $fixture = createOrderSchemaFixture();
 
-    DB::table('order_items')->insert([
-        [
-            'order_id' => $fixture['order_id'],
-            'product_name' => 'Plastic bags',
-            'size' => '10 x 15 inches',
-            'customization_notes' => 'Blue bags with a printed logo',
-            'quantity' => 1000,
-            'unit_price' => '3.00',
-        ],
+    OrderItem::factory()->create([
+        'order_id' => $fixture['order_id'],
+        'product_name' => 'Plastic bags',
+        'size' => '10 x 15 inches',
+        'customization_notes' => 'Blue bags with a printed logo',
+        'quantity' => 1000,
+        'unit_price' => '3.00',
     ]);
-    DB::table('order_items')->insert([
+    OrderItem::factory()->create([
         'order_id' => $fixture['order_id'],
         'product_name' => 'Zip bags',
         'quantity' => 500,
@@ -48,7 +49,7 @@ test('an order can store several packaging items and payment entries', function 
         'unit_price' => '4.00',
     ]);
 
-    DB::table('payments')->insert([
+    foreach ([
         [
             'order_id' => $fixture['order_id'],
             'payment_date' => '2026-10-30',
@@ -61,7 +62,9 @@ test('an order can store several packaging items and payment entries', function 
             'amount' => '3000.00',
             'payment_type' => 'full_payment',
         ],
-    ]);
+    ] as $payment) {
+        Payment::factory()->create($payment);
+    }
 
     $this->assertDatabaseCount('order_items', 2);
     $this->assertDatabaseCount('payments', 2);
@@ -99,7 +102,7 @@ test('an order can store several packaging items and payment entries', function 
 test('a customer with orders cannot be deleted', function (): void {
     $fixture = createOrderSchemaFixture();
 
-    expect(fn (): int => DB::table('customers')->where('id', $fixture['customer_id'])->delete())
+    expect(fn (): ?bool => Customer::query()->findOrFail($fixture['customer_id'])->delete())
         ->toThrow(QueryException::class);
 
     $this->assertDatabaseHas('customers', ['id' => $fixture['customer_id']]);
@@ -108,20 +111,20 @@ test('a customer with orders cannot be deleted', function (): void {
 
 test('an order with a payment cannot be deleted or lose its items', function (): void {
     $fixture = createOrderSchemaFixture();
-    DB::table('order_items')->insert([
+    OrderItem::factory()->create([
         'order_id' => $fixture['order_id'],
         'product_name' => 'Plastic bags',
         'quantity' => 100,
         'unit_price' => '1.25',
     ]);
-    DB::table('payments')->insert([
+    Payment::factory()->create([
         'order_id' => $fixture['order_id'],
         'payment_date' => '2026-10-30',
         'amount' => '25.00',
         'payment_type' => 'down_payment',
     ]);
 
-    expect(fn (): int => DB::table('orders')->where('id', $fixture['order_id'])->delete())
+    expect(fn (): ?bool => Order::query()->findOrFail($fixture['order_id'])->delete())
         ->toThrow(QueryException::class);
 
     $this->assertDatabaseHas('orders', ['id' => $fixture['order_id']]);
@@ -132,7 +135,7 @@ test('an order with a payment cannot be deleted or lose its items', function ():
 test('deleting an unpaid order removes only its items and retains the customer', function (): void {
     $fixture = createOrderSchemaFixture();
     $otherFixture = createOrderSchemaFixture();
-    DB::table('order_items')->insert([
+    foreach ([
         [
             'order_id' => $fixture['order_id'],
             'product_name' => 'Plastic bags',
@@ -151,9 +154,11 @@ test('deleting an unpaid order removes only its items and retains the customer',
             'quantity' => 2,
             'unit_price' => '150.00',
         ],
-    ]);
+    ] as $item) {
+        OrderItem::factory()->create($item);
+    }
 
-    DB::table('orders')->where('id', $fixture['order_id'])->delete();
+    Order::query()->findOrFail($fixture['order_id'])->delete();
 
     $this->assertDatabaseMissing('orders', ['id' => $fixture['order_id']]);
     $this->assertDatabaseMissing('order_items', ['order_id' => $fixture['order_id']]);
@@ -163,22 +168,22 @@ test('deleting an unpaid order removes only its items and retains the customer',
     $this->assertDatabaseHas('order_items', ['order_id' => $otherFixture['order_id']]);
 });
 
-test('order records reject missing parent records', function (string $table, array $attributes): void {
-    expect(fn (): bool => DB::table($table)->insert($attributes))
+test('order records reject missing parent records', function (string $modelClass, array $attributes): void {
+    expect(fn (): Model => $modelClass::factory()->create($attributes))
         ->toThrow(QueryException::class);
 
-    $this->assertDatabaseCount($table, 0);
+    $this->assertDatabaseCount((new $modelClass)->getTable(), 0);
 })->with([
     'order without a customer' => [
-        'orders',
+        Order::class,
         ['customer_id' => 999, 'order_date' => '2026-10-30', 'due_date' => '2026-11-29'],
     ],
     'item without an order' => [
-        'order_items',
+        OrderItem::class,
         ['order_id' => 999, 'product_name' => 'Plastic bags', 'quantity' => 100, 'unit_price' => '1.25'],
     ],
     'payment without an order' => [
-        'payments',
+        Payment::class,
         ['order_id' => 999, 'payment_date' => '2026-10-30', 'amount' => '25.00', 'payment_type' => 'down_payment'],
     ],
 ]);
