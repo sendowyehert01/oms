@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/create-order.js', 'resources/js/order-navigation.js'],
+            input: ['resources/css/app.css', 'resources/js/create-order.js', 'resources/js/order-navigation.js', 'resources/js/delete-order.js'],
             refresh: true,
         }),
         tailwindcss(),

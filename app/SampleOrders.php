@@ -2,16 +2,18 @@
 
 namespace App;
 
+use Illuminate\Session\Store;
 use Illuminate\Support\Collection;
 
 class SampleOrders
 {
     /**
+     * @param  array<int, int>  $excludedOrderIds
      * @return array{id: int, number: string, customer_name: string, order_date: string, status: string, total_amount_in_cents: int, customer: array{id: null, name: string}, items: array<int, array{product_name: string, quantity: int, unit_price_in_cents: int, subtotal_in_cents: int}>}|null
      */
-    public function find(int $orderId): ?array
+    public function find(int $orderId, array $excludedOrderIds = []): ?array
     {
-        $order = $this->all()->firstWhere('id', $orderId);
+        $order = $this->all($excludedOrderIds)->firstWhere('id', $orderId);
 
         if ($order === null) {
             return null;
@@ -30,9 +32,10 @@ class SampleOrders
     }
 
     /**
+     * @param  array<int, int>  $excludedOrderIds
      * @return Collection<int, array{id: int, number: string, customer_name: string, order_date: string, status: string, total_amount_in_cents: int}>
      */
-    public function all(): Collection
+    public function all(array $excludedOrderIds = []): Collection
     {
         return collect([
             [1024, 'Northstar Packaging', '2026-10-31', 'In production', 1_850_000],
@@ -66,6 +69,20 @@ class SampleOrders
             'order_date' => $order[2],
             'status' => $order[3],
             'total_amount_in_cents' => $order[4],
-        ]);
+        ])->reject(fn (array $order): bool => in_array($order['id'], $excludedOrderIds, true))->values();
+    }
+
+    public function delete(int $orderId, Store $session): ?string
+    {
+        $excludedOrderIds = $session->get('orders.deleted_samples', []);
+        $order = $this->find($orderId, $excludedOrderIds);
+
+        if ($order === null) {
+            return null;
+        }
+
+        $session->put('orders.deleted_samples', [...$excludedOrderIds, $orderId]);
+
+        return $order['number'];
     }
 }

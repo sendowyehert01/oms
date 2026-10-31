@@ -27,8 +27,9 @@
                         <x-order-status :status="$order['status']" />
                     </td>
                     <td class="px-6 py-5 text-right font-medium whitespace-nowrap tabular-nums">{{ number_format($order['total_amount_in_cents'] / 100, 2) }}</td>
-                    <td class="px-6 py-5">
+                    <td class="px-6 py-5 whitespace-nowrap">
                         <a href="{{ route($isSampleData ? 'orders.samples.show' : 'orders.show', ['order' => $order['id'], 'search' => $search, 'page' => $orders->currentPage()]) }}" data-view-order aria-label="View order {{ $order['number'] }}" class="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-indigo-700 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-indigo-300 dark:hover:bg-indigo-950">View</a>
+                        <button type="button" disabled data-delete-order data-order-number="{{ $order['number'] }}" data-delete-url="{{ route($isSampleData ? 'orders.samples.destroy' : 'orders.destroy', ['order' => $order['id'], 'search' => $search, 'page' => $orders->currentPage()]) }}" aria-label="Delete order {{ $order['number'] }}" class="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-rose-700 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 disabled:opacity-50 dark:text-rose-300 dark:hover:bg-rose-950">Delete</button>
                     </td>
                 </tr>
             @empty

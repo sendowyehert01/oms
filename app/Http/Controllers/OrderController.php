@@ -6,6 +6,7 @@ use App\Http\Requests\StoreOrderRequest;
 use App\OrderEntries;
 use App\SampleOrders;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -13,19 +14,20 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Throwable;
 
 class OrderController extends Controller
 {
-    public function index(Request $request, SampleOrders $sampleOrders, OrderEntries $orderEntries): View
+    public function index(Request $request, SampleOrders $sampleOrders, OrderEntries $orderEntries): View|string
     {
         $search = $request->query('search', '');
         $search = is_string($search) ? trim($search) : '';
         $searchTerm = mb_strtolower($search);
 
         $savedOrders = $orderEntries->all();
-        $isSampleData = $savedOrders->isEmpty();
+        $isSampleData = $savedOrders->isEmpty() && ! $orderEntries->hasCustomers();
 
-        $matchingOrders = ($isSampleData ? $sampleOrders->all() : $savedOrders)
+        $matchingOrders = ($isSampleData ? $sampleOrders->all($request->session()->get('orders.deleted_samples', [])) : $savedOrders)
             ->filter(fn (array $order): bool => $search === ''
                 || str_contains(mb_strtolower($order['number']), $searchTerm)
                 || str_contains((string) $order['id'], $searchTerm)
@@ -46,7 +48,9 @@ class OrderController extends Controller
 
         $orders->appends(['search' => $search]);
 
-        return view('orders.index', compact('orders', 'search', 'isSampleData'));
+        $view = view('orders.index', compact('orders', 'search', 'isSampleData'));
+
+        return $request->hasHeader('X-Orders-Fragment') ? $view->fragment('orders-list') : $view;
     }
 
     public function create(): View
@@ -82,7 +86,7 @@ class OrderController extends Controller
         $orderId = filter_var($order, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
         try {
-            $details = $orderId === false ? null : ($isSampleData ? $sampleOrders->find($orderId) : $orderEntries->find($orderId));
+            $details = $orderId === false ? null : ($isSampleData ? $sampleOrders->find($orderId, $request->session()->get('orders.deleted_samples', [])) : $orderEntries->find($orderId));
         } catch (QueryException $exception) {
             report($exception);
 
@@ -104,5 +108,64 @@ class OrderController extends Controller
         }
 
         return view('orders.show', ['order' => $details, 'isSampleData' => $isSampleData, 'returnToOrdersUrl' => $returnToOrdersUrl]);
+    }
+
+    public function destroy(Request $request, string $order, OrderEntries $orderEntries, SampleOrders $sampleOrders): JsonResponse|RedirectResponse
+    {
+        $request->validate(['confirmed' => ['required', 'accepted']], [
+            'confirmed.required' => 'Confirm the order deletion before proceeding.',
+            'confirmed.accepted' => 'Confirm the order deletion before proceeding.',
+        ]);
+
+        $search = $request->query('search', '');
+        $search = is_string($search) ? trim($search) : '';
+        $page = filter_var($request->query('page', 1), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: 1;
+        $listUrl = route('orders.index', ['search' => $search, 'page' => $page]);
+        $orderId = filter_var($order, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
+        try {
+            if ($request->routeIs('orders.samples.destroy')) {
+                $orderNumber = $orderId === false ? null : $sampleOrders->delete($orderId, $request->session());
+                $result = $orderNumber === null ? ['status' => 'missing'] : ['status' => 'deleted', 'number' => $orderNumber];
+            } else {
+                $result = $orderId === false ? ['status' => 'missing'] : $orderEntries->delete($orderId);
+            }
+        } catch (QueryException $exception) {
+            report($exception);
+
+            return $this->deletionError($request, $listUrl, 'The order could not be deleted. Please try again.', 503);
+        }
+
+        if ($result['status'] === 'missing') {
+            return $this->deletionError($request, $listUrl, 'The order does not exist or has already been deleted.', 404);
+        }
+
+        if ($result['status'] === 'protected') {
+            return $this->deletionError($request, $listUrl, 'Orders with recorded payments cannot be deleted.', 409);
+        }
+
+        $message = 'Order '.$result['number'].' deleted successfully.';
+        $request->session()->flash('success', $message);
+
+        if (! $request->expectsJson()) {
+            return redirect()->to($listUrl);
+        }
+
+        try {
+            $request->headers->set('X-Orders-Fragment', '1');
+            $html = $this->index($request, $sampleOrders, $orderEntries);
+        } catch (Throwable $exception) {
+            report($exception);
+            $html = null;
+        }
+
+        return response()->json(['message' => $message, 'html' => $html, 'redirect_url' => $listUrl]);
+    }
+
+    private function deletionError(Request $request, string $listUrl, string $message, int $status): JsonResponse|RedirectResponse
+    {
+        return $request->expectsJson()
+            ? response()->json(['message' => $message], $status)
+            : redirect()->to($listUrl)->with('error', $message);
     }
 }
