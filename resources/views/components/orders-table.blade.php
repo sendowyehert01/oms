@@ -1,4 +1,4 @@
-@props(['orders', 'search' => ''])
+@props(['orders', 'search' => '', 'isSampleData' => false])
 
 <div class="overflow-x-auto" role="region" aria-label="Orders table" tabindex="0">
     <table @class(['w-full text-left text-sm', 'min-w-190' => $orders->count() > 0])>
@@ -11,6 +11,7 @@
                     <th scope="col" class="px-6 py-4">Order date</th>
                     <th scope="col" class="px-6 py-4">Order status</th>
                     <th scope="col" class="px-6 py-4 text-right">Total amount <span class="font-normal">(PHP)</span></th>
+                    <th scope="col" class="px-6 py-4">Actions</th>
                 </tr>
             </thead>
         @endif
@@ -23,22 +24,16 @@
                         <time datetime="{{ $order['order_date'] }}">{{ \Illuminate\Support\Carbon::parse($order['order_date'])->format('M j, Y') }}</time>
                     </td>
                     <td class="px-6 py-5 whitespace-nowrap">
-                        <span @class([
-                            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-                            'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300' => $order['status'] === 'Pending',
-                            'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300' => $order['status'] === 'In production',
-                            'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300' => $order['status'] === 'Ready for delivery',
-                            'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' => $order['status'] === 'Completed',
-                        ])>
-                            <span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
-                            {{ $order['status'] }}
-                        </span>
+                        <x-order-status :status="$order['status']" />
                     </td>
                     <td class="px-6 py-5 text-right font-medium whitespace-nowrap tabular-nums">{{ number_format($order['total_amount_in_cents'] / 100, 2) }}</td>
+                    <td class="px-6 py-5">
+                        <a href="{{ route($isSampleData ? 'orders.samples.show' : 'orders.show', ['order' => $order['id'], 'search' => $search, 'page' => $orders->currentPage()]) }}" data-view-order aria-label="View order {{ $order['number'] }}" class="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-indigo-700 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-indigo-300 dark:hover:bg-indigo-950">View</a>
+                    </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5" class="px-6 py-16 text-center">
+                    <td colspan="6" class="px-6 py-16 text-center">
                         <svg class="mx-auto mb-4 size-10 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                             <circle cx="10.5" cy="10.5" r="6.5" />
                             <path stroke-linecap="round" d="m16 16 4 4" />

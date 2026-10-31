@@ -40,8 +40,58 @@ class OrderEntries
             'order_date' => $order->order_date,
             'status' => $order->status,
             'total_amount_in_cents' => $itemsByOrder->get($order->id, collect())
-                ->sum(fn (stdClass $item): int => (int) $item->quantity * $this->priceInCents((string) $item->unit_price)),
+                ->sum(fn (stdClass $item): int => $this->itemSubtotalInCents($item)),
         ]);
+    }
+
+    /**
+     * @return array{id: int, number: string, customer_name: string, order_date: string, due_date: string, status: string, total_amount_in_cents: int, customer: array{id: int, name: string, contact_person: string, address: string, contact_number: string}, items: array<int, array{product_name: string, quantity: int, unit_price_in_cents: int, subtotal_in_cents: int}>}|null
+     */
+    public function find(int $orderId): ?array
+    {
+        if (! Schema::hasTable('orders')) {
+            return null;
+        }
+
+        $order = DB::table('orders')
+            ->join('customers', 'customers.id', '=', 'orders.customer_id')
+            ->where('orders.id', $orderId)
+            ->select('orders.id', 'orders.customer_id', 'orders.order_date', 'orders.due_date', 'orders.status', 'customers.company_name', 'customers.contact_person', 'customers.address', 'customers.contact_number')
+            ->first();
+
+        if ($order === null) {
+            return null;
+        }
+
+        $items = DB::table('order_items')
+            ->where('order_id', $orderId)
+            ->select('product_name', 'quantity', 'unit_price')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (stdClass $item): array => [
+                'product_name' => $item->product_name,
+                'quantity' => (int) $item->quantity,
+                'unit_price_in_cents' => $this->priceInCents((string) $item->unit_price),
+                'subtotal_in_cents' => $this->itemSubtotalInCents($item),
+            ]);
+
+        return [
+            'id' => (int) $order->id,
+            'number' => $this->number((int) $order->id, $order->order_date),
+            'customer_name' => $order->company_name,
+            'order_date' => $order->order_date,
+            'due_date' => $order->due_date,
+            'status' => $order->status,
+            'total_amount_in_cents' => $items->sum('subtotal_in_cents'),
+            'customer' => [
+                'id' => (int) $order->customer_id,
+                'name' => $order->company_name,
+                'contact_person' => $order->contact_person,
+                'address' => $order->address,
+                'contact_number' => $order->contact_number,
+            ],
+            'items' => $items->all(),
+        ];
     }
 
     /**
@@ -109,5 +159,10 @@ class OrderEntries
         [$whole, $fraction] = array_pad(explode('.', $price, 2), 2, '0');
 
         return (int) $whole * 100 + (int) str_pad($fraction, 2, '0');
+    }
+
+    private function itemSubtotalInCents(stdClass $item): int
+    {
+        return (int) $item->quantity * $this->priceInCents((string) $item->unit_price);
     }
 }

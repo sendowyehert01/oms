@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreOrderRequest;
 use App\OrderEntries;
 use App\SampleOrders;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -67,5 +69,40 @@ class OrderController extends Controller
         $orderNumber = $orderEntries->number($orderId, $orderDate);
 
         return to_route('orders.index')->with('success', 'Order '.$orderNumber.' created successfully.');
+    }
+
+    public function show(Request $request, string $order, OrderEntries $orderEntries, SampleOrders $sampleOrders): View|Response
+    {
+        $search = $request->query('search', '');
+        $search = is_string($search) ? trim($search) : '';
+        $page = filter_var($request->query('page', 1), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: 1;
+        $listQuery = ['search' => $search, 'page' => $page];
+        $returnToOrdersUrl = route('orders.index', $listQuery);
+        $isSampleData = $request->routeIs('orders.samples.show');
+        $orderId = filter_var($order, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
+        try {
+            $details = $orderId === false ? null : ($isSampleData ? $sampleOrders->find($orderId) : $orderEntries->find($orderId));
+        } catch (QueryException $exception) {
+            report($exception);
+
+            return response()->view('orders.unavailable', [
+                'title' => 'Unable to load order',
+                'message' => 'Order details could not be loaded. Please try again.',
+                'returnToOrdersUrl' => $returnToOrdersUrl,
+                'retryUrl' => route('orders.show', ['order' => $order] + $listQuery),
+            ], 503);
+        }
+
+        if ($details === null) {
+            return response()->view('orders.unavailable', [
+                'title' => 'Order not found',
+                'message' => 'The requested order does not exist or is no longer available.',
+                'returnToOrdersUrl' => $returnToOrdersUrl,
+                'retryUrl' => null,
+            ], 404);
+        }
+
+        return view('orders.show', ['order' => $details, 'isSampleData' => $isSampleData, 'returnToOrdersUrl' => $returnToOrdersUrl]);
     }
 }
