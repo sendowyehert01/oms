@@ -7,6 +7,29 @@ use Illuminate\Support\Collection;
 class SampleOrders
 {
     /**
+     * @return array{id: int, number: string, customer_name: string, order_date: string, status: string, total_amount_in_cents: int, customer: array{id: null, name: string}, items: array<int, array{product_name: string, quantity: int, unit_price_in_cents: int, subtotal_in_cents: int}>}|null
+     */
+    public function find(int $orderId): ?array
+    {
+        $order = $this->all()->firstWhere('id', $orderId);
+
+        if ($order === null) {
+            return null;
+        }
+
+        $packagingAmountInCents = intdiv($order['total_amount_in_cents'], 2);
+        $labelsAmountInCents = $order['total_amount_in_cents'] - $packagingAmountInCents;
+
+        return array_merge($order, [
+            'customer' => ['id' => null, 'name' => $order['customer_name']],
+            'items' => [
+                ['product_name' => 'Sample custom packaging', 'quantity' => 1, 'unit_price_in_cents' => $packagingAmountInCents, 'subtotal_in_cents' => $packagingAmountInCents],
+                ['product_name' => 'Sample printed labels', 'quantity' => 1, 'unit_price_in_cents' => $labelsAmountInCents, 'subtotal_in_cents' => $labelsAmountInCents],
+            ],
+        ]);
+    }
+
+    /**
      * @return Collection<int, array{id: int, number: string, customer_name: string, order_date: string, status: string, total_amount_in_cents: int}>
      */
     public function all(): Collection

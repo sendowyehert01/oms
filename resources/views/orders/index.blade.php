@@ -22,7 +22,7 @@
             <x-orders-search :search="$search" />
         </div>
 
-        <x-orders-table :orders="$orders" :search="$search" />
+        <x-orders-table :orders="$orders" :search="$search" :is-sample-data="$isSampleData" />
 
         <x-pagination :paginator="$orders" />
     </section>
