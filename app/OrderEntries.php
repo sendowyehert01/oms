@@ -2,11 +2,13 @@
 
 namespace App;
 
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\OrderItem;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use stdClass;
 
 class OrderEntries
 {
@@ -21,27 +23,19 @@ class OrderEntries
             return collect();
         }
 
-        $orders = DB::table('orders')
-            ->join('customers', 'customers.id', '=', 'orders.customer_id')
-            ->select('orders.id', 'orders.order_date', 'orders.status', 'customers.company_name')
-            ->orderByDesc('orders.id')
-            ->get();
-
-        $itemsByOrder = DB::table('order_items')
-            ->select('order_id', 'quantity', 'unit_price')
-            ->whereIn('order_id', $orders->pluck('id'))
+        return Order::query()
+            ->select('id', 'customer_id', 'order_date', 'status')
+            ->with(['customer:id,company_name', 'items:id,order_id,quantity,unit_price'])
+            ->orderByDesc('id')
             ->get()
-            ->groupBy('order_id');
-
-        return $orders->map(fn (stdClass $order): array => [
-            'id' => (int) $order->id,
-            'number' => $this->number((int) $order->id, $order->order_date),
-            'customer_name' => $order->company_name,
-            'order_date' => $order->order_date,
-            'status' => $order->status,
-            'total_amount_in_cents' => $itemsByOrder->get($order->id, collect())
-                ->sum(fn (stdClass $item): int => $this->itemSubtotalInCents($item)),
-        ]);
+            ->map(fn (Order $order): array => [
+                'id' => $order->id,
+                'number' => $this->number($order->id, $order->order_date->toDateString()),
+                'customer_name' => $order->customer->company_name,
+                'order_date' => $order->order_date->toDateString(),
+                'status' => $order->status,
+                'total_amount_in_cents' => $order->items->sum(fn (OrderItem $item): int => $this->itemSubtotalInCents($item)),
+            ]);
     }
 
     /**
@@ -53,42 +47,33 @@ class OrderEntries
             return null;
         }
 
-        $order = DB::table('orders')
-            ->join('customers', 'customers.id', '=', 'orders.customer_id')
-            ->where('orders.id', $orderId)
-            ->select('orders.id', 'orders.customer_id', 'orders.order_date', 'orders.due_date', 'orders.status', 'customers.company_name', 'customers.contact_person', 'customers.address', 'customers.contact_number')
-            ->first();
+        $order = Order::query()->with(['customer', 'items'])->find($orderId);
 
         if ($order === null) {
             return null;
         }
 
-        $items = DB::table('order_items')
-            ->where('order_id', $orderId)
-            ->select('product_name', 'quantity', 'unit_price')
-            ->orderBy('id')
-            ->get()
-            ->map(fn (stdClass $item): array => [
-                'product_name' => $item->product_name,
-                'quantity' => (int) $item->quantity,
-                'unit_price_in_cents' => $this->priceInCents((string) $item->unit_price),
-                'subtotal_in_cents' => $this->itemSubtotalInCents($item),
-            ]);
+        $items = $order->items->map(fn (OrderItem $item): array => [
+            'product_name' => $item->product_name,
+            'quantity' => (int) $item->quantity,
+            'unit_price_in_cents' => $this->priceInCents((string) $item->unit_price),
+            'subtotal_in_cents' => $this->itemSubtotalInCents($item),
+        ]);
 
         return [
-            'id' => (int) $order->id,
-            'number' => $this->number((int) $order->id, $order->order_date),
-            'customer_name' => $order->company_name,
-            'order_date' => $order->order_date,
-            'due_date' => $order->due_date,
+            'id' => $order->id,
+            'number' => $this->number($order->id, $order->order_date->toDateString()),
+            'customer_name' => $order->customer->company_name,
+            'order_date' => $order->order_date->toDateString(),
+            'due_date' => $order->due_date->toDateString(),
             'status' => $order->status,
             'total_amount_in_cents' => $items->sum('subtotal_in_cents'),
             'customer' => [
-                'id' => (int) $order->customer_id,
-                'name' => $order->company_name,
-                'contact_person' => $order->contact_person,
-                'address' => $order->address,
-                'contact_number' => $order->contact_number,
+                'id' => $order->customer_id,
+                'name' => $order->customer->company_name,
+                'contact_person' => $order->customer->contact_person,
+                'address' => $order->customer->address,
+                'contact_number' => $order->customer->contact_number,
             ],
             'items' => $items->all(),
         ];
@@ -96,7 +81,7 @@ class OrderEntries
 
     public function hasCustomers(): bool
     {
-        return Schema::hasTable('customers') && DB::table('customers')->exists();
+        return Schema::hasTable('customers') && Customer::query()->exists();
     }
 
     /**
@@ -105,19 +90,19 @@ class OrderEntries
     public function delete(int $orderId): array
     {
         return DB::transaction(function () use ($orderId): array {
-            $order = DB::table('orders')->where('id', $orderId)->lockForUpdate()->first(['id', 'order_date']);
+            $order = Order::query()->whereKey($orderId)->lockForUpdate()->first(['id', 'order_date']);
 
             if ($order === null) {
                 return ['status' => 'missing'];
             }
 
-            if (DB::table('payments')->where('order_id', $orderId)->exists()) {
+            if ($order->payments()->exists()) {
                 return ['status' => 'protected'];
             }
 
-            DB::table('orders')->where('id', $orderId)->delete();
+            $order->delete();
 
-            return ['status' => 'deleted', 'number' => $this->number((int) $order->id, $order->order_date)];
+            return ['status' => 'deleted', 'number' => $this->number($order->id, $order->order_date->toDateString())];
         });
     }
 
@@ -126,7 +111,7 @@ class OrderEntries
      */
     public function create(array $data): int
     {
-        $existingOrderId = DB::table('orders')->where('submission_key', $data['submission_key'])->value('id');
+        $existingOrderId = Order::query()->where('submission_key', $data['submission_key'])->value('id');
 
         if ($existingOrderId !== null) {
             return (int) $existingOrderId;
@@ -134,39 +119,30 @@ class OrderEntries
 
         try {
             return DB::transaction(function () use ($data): int {
-                $timestamp = now();
-                $customerId = $data['customer_id'] ?? DB::table('customers')->insertGetId([
+                $customer = isset($data['customer_id']) ? Customer::query()->findOrFail($data['customer_id']) : Customer::query()->create([
                     'company_name' => $data['customer_name'],
                     'contact_person' => $data['contact_person'],
                     'address' => $data['address'],
                     'contact_number' => $data['contact_number'],
-                    'created_at' => $timestamp,
-                    'updated_at' => $timestamp,
                 ]);
 
-                $orderId = DB::table('orders')->insertGetId([
-                    'customer_id' => $customerId,
+                $order = $customer->orders()->create([
                     'order_date' => $data['order_date'],
                     'due_date' => $data['due_date'],
                     'status' => $data['status'],
                     'submission_key' => $data['submission_key'],
-                    'created_at' => $timestamp,
-                    'updated_at' => $timestamp,
                 ]);
 
-                DB::table('order_items')->insert(array_map(fn (array $item): array => [
-                    'order_id' => $orderId,
+                $order->items()->createMany(array_map(fn (array $item): array => [
                     'product_name' => $item['product_name'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'created_at' => $timestamp,
-                    'updated_at' => $timestamp,
                 ], $data['items']));
 
-                return $orderId;
+                return $order->id;
             });
         } catch (UniqueConstraintViolationException $exception) {
-            $existingOrderId = DB::table('orders')->where('submission_key', $data['submission_key'])->value('id');
+            $existingOrderId = Order::query()->where('submission_key', $data['submission_key'])->value('id');
 
             if ($existingOrderId === null) {
                 throw $exception;
@@ -188,7 +164,7 @@ class OrderEntries
         return (int) $whole * 100 + (int) str_pad($fraction, 2, '0');
     }
 
-    private function itemSubtotalInCents(stdClass $item): int
+    private function itemSubtotalInCents(OrderItem $item): int
     {
         return (int) $item->quantity * $this->priceInCents((string) $item->unit_price);
     }

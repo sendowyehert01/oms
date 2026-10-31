@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Customer;
 use App\OrderEntries;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -25,7 +26,7 @@ class StoreOrderRequest extends FormRequest
     {
         return [
             'submission_key' => ['required', 'uuid'],
-            'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')],
+            'customer_id' => ['nullable', 'integer', Rule::exists(Customer::class, 'id')],
             'customer_name' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:255'],
             'contact_person' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:255'],
             'address' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:2000'],
