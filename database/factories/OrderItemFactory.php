@@ -25,4 +25,16 @@ class OrderItemFactory extends Factory
             'unit_price' => '1.25',
         ];
     }
+
+    public function withSpecifications(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'material_color' => 'LDPE / transparent',
+            'size' => '8 x 12 inches / 0.03 mm',
+            'print_design_colors' => 'Company logo / 2 colors',
+            'sealing' => 'Bottom Seal',
+            'puncher' => 'None',
+            'customization_notes' => 'Pack in bundles of 100.',
+        ]);
+    }
 }

@@ -58,7 +58,22 @@
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                     @forelse ($order['items'] as $item)
                         <tr>
-                            <th scope="row" class="px-6 py-5 font-medium [overflow-wrap:anywhere]">{{ $item['product_name'] }}</th>
+                            <th scope="row" class="max-w-lg px-6 py-5 font-medium [overflow-wrap:anywhere]">
+                                {{ $item['product_name'] }}
+                                <dl class="mt-3 space-y-2 text-xs font-normal">
+                                    @foreach (['material_color' => 'Material/Color', 'size' => 'Size and Thickness', 'print_design_colors' => 'Print Design and No. of Colors', 'sealing' => 'Sealing', 'puncher' => 'Puncher', 'customization_notes' => 'Remarks'] as $field => $label)
+                                        @php
+                                            $specification = $item[$field] ?? null;
+                                            if (in_array($field, ['sealing', 'puncher'], true) && $specification === 'Others') {
+                                                $specification = $item[$field.'_other'] ?? null;
+                                            }
+                                        @endphp
+                                        @if (filled($specification))
+                                            <div><dt class="text-slate-500 dark:text-slate-400">{{ $label }}</dt><dd class="mt-1 whitespace-pre-line">{{ $specification }}</dd></div>
+                                        @endif
+                                    @endforeach
+                                </dl>
+                            </th>
                             <td class="px-6 py-5 text-right tabular-nums">{{ number_format($item['quantity']) }}</td>
                             <td class="px-6 py-5 text-right whitespace-nowrap tabular-nums">{{ number_format($item['unit_price_in_cents'] / 100, 2) }}</td>
                             <td class="px-6 py-5 text-right font-medium whitespace-nowrap tabular-nums">{{ number_format($item['subtotal_in_cents'] / 100, 2) }}</td>

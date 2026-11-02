@@ -10,6 +10,17 @@ if (form) {
     let nextItemIndex = 0;
     let isSubmitting = false;
 
+    const updateChoiceInputs = (row) => {
+        row.querySelectorAll('[data-item-choice]').forEach((choice) => {
+            const isOther = choice.querySelector('[data-choice-select]').value === 'Others';
+            const customField = choice.querySelector('[data-choice-other]');
+            const customInput = customField.querySelector('input');
+            customField.hidden = !isOther;
+            customInput.disabled = !isOther;
+            customInput.required = isOther;
+        });
+    };
+
     const priceInCents = (value) => {
         if (!/^\d+(?:\.\d{1,2})?$/.test(value)) {
             return 0;
@@ -54,11 +65,17 @@ if (form) {
         nextItemIndex += 1;
         const newRow = template.content.firstElementChild;
         items.append(newRow);
+        updateChoiceInputs(newRow);
         newRow.querySelector('input').focus();
         updateTotals();
     });
 
     items.addEventListener('input', updateTotals);
+    items.addEventListener('change', (event) => {
+        if (event.target.matches('[data-choice-select]')) {
+            updateChoiceInputs(event.target.closest('[data-order-item]'));
+        }
+    });
     items.addEventListener('click', (event) => {
         const removeButton = event.target.closest('[data-remove-item]');
         if (removeButton) {
@@ -90,8 +107,10 @@ if (form) {
         submitButton.disabled = false;
         submitButton.textContent = 'Create Order';
         form.removeAttribute('aria-busy');
+        items.querySelectorAll('[data-order-item]').forEach(updateChoiceInputs);
         updateTotals();
     });
 
+    items.querySelectorAll('[data-order-item]').forEach(updateChoiceInputs);
     updateTotals();
 }
