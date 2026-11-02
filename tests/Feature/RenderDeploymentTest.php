@@ -2,7 +2,6 @@
 
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 pest()->use(DatabaseMigrations::class);
 
@@ -48,17 +47,28 @@ test('unconfigured proxies cannot change the scheme of local application links',
 
 test('database sessions retain validation errors and entered values between form requests', function (): void {
     config(['session.driver' => 'database']);
-    $this->get(route('orders.create'))->assertOk();
+    $choice = $this->get(route('orders.create'))->assertOk();
+    $key = $choice->viewData('submissionKey');
     $this->withCookie(config('session.cookie'), session()->getId());
 
-    $response = $this->from(route('orders.create'))->post(route('orders.store'), [
-        'submission_key' => (string) Str::uuid(),
+    $response = $this->post(route('orders.creation.select-customer'), [
+        'submission_key' => $key,
+        'customer_type' => 'new',
         'customer_name' => 'Retained test customer',
     ]);
 
-    $response->assertRedirectToRoute('orders.create')->assertSessionHasErrors(['contact_person', 'items']);
-    $this->get(route('orders.create'))->assertOk()->assertSee('value="Retained test customer"', false)
-        ->assertSee('Add at least one item to the order.');
+    $response->assertRedirectToRoute('orders.creation.customer', ['type' => 'new', 'draft' => $key])->assertSessionHasErrors('contact_person');
+    $this->get(route('orders.creation.customer', ['type' => 'new', 'draft' => $key]))->assertOk()->assertSee('value="Retained test customer"', false);
+    $this->post(route('orders.creation.select-customer'), [
+        'submission_key' => $key,
+        'customer_type' => 'new',
+        'customer_name' => 'Retained test customer',
+        'contact_person' => 'Test Contact',
+        'address' => '123 Market Street',
+        'contact_number' => '09123456789',
+    ])->assertRedirectToRoute('orders.creation.details', ['draft' => $key]);
+    $this->post(route('orders.store'), ['submission_key' => $key])->assertSessionHasErrors('items');
+    $this->get(route('orders.creation.details', ['draft' => $key]))->assertOk()->assertSee('Retained test customer')->assertSee('Add at least one item to the order.');
     $this->assertDatabaseCount('sessions', 1);
     $this->assertDatabaseCount('orders', 0);
 });

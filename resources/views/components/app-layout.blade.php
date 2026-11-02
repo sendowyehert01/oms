@@ -8,7 +8,7 @@
         <title>{{ $title }} · OMS</title>
 
         @vite('resources/css/app.css')
-        @if (request()->routeIs('orders.create'))
+        @if (request()->routeIs('orders.creation.details'))
             @vite('resources/js/create-order.js')
         @endif
         @if (request()->routeIs('orders.index'))
