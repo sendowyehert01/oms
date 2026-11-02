@@ -6,8 +6,6 @@ if (form) {
     const addItemButton = form.querySelector('[data-add-item]');
     const itemsError = form.querySelector('[data-items-error]');
     const submitButton = form.querySelector('[data-submit-order]');
-    const customerSelect = form.querySelector('[data-customer-select]');
-    const newCustomerFields = form.querySelector('[data-new-customer]');
     const formatter = new Intl.NumberFormat('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     let nextItemIndex = 0;
     let isSubmitting = false;
@@ -42,12 +40,6 @@ if (form) {
         addItemButton.disabled = rows.length >= 100;
     };
 
-    const updateCustomerFields = () => {
-        const hasExistingCustomer = customerSelect.value !== '';
-        newCustomerFields.hidden = hasExistingCustomer;
-        newCustomerFields.disabled = hasExistingCustomer;
-    };
-
     addItemButton.addEventListener('click', () => {
         if (items.querySelectorAll('[data-order-item]').length >= 100) {
             return;
@@ -75,9 +67,12 @@ if (form) {
             updateTotals();
         }
     });
-    customerSelect.addEventListener('change', updateCustomerFields);
 
     form.addEventListener('submit', (event) => {
+        if (event.submitter?.hasAttribute('formnovalidate')) {
+            return;
+        }
+
         if (isSubmitting || !items.querySelector('[data-order-item]')) {
             event.preventDefault();
             updateTotals();
@@ -95,10 +90,8 @@ if (form) {
         submitButton.disabled = false;
         submitButton.textContent = 'Create Order';
         form.removeAttribute('aria-busy');
-        updateCustomerFields();
         updateTotals();
     });
 
-    updateCustomerFields();
     updateTotals();
 }

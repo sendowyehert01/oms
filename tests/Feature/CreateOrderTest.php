@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Str;
+use Tests\TestCase;
 
 pest()->use(DatabaseMigrations::class);
 
@@ -36,11 +37,30 @@ function validCreateOrderData(array $overrides = []): array
     ], $overrides);
 }
 
-test('the orders list links to a creation form with customer details items and a cancel link', function (): void {
+/** @param array<string, mixed> $data */
+function startCreateOrderWithCustomer(TestCase $testCase, array $data): string
+{
+    $response = $testCase->get(route('orders.create'))->assertOk();
+    $key = $response->viewData('submissionKey');
+    $testCase->withCookie(config('session.cookie'), session()->getId());
+    $testCase->post(route('orders.creation.select-customer'), [
+        'submission_key' => $key,
+        'customer_type' => 'new',
+        'customer_name' => $data['customer_name'],
+        'contact_person' => $data['contact_person'],
+        'address' => $data['address'],
+        'contact_number' => $data['contact_number'],
+    ])->assertRedirectToRoute('orders.creation.details', ['draft' => $key]);
+
+    return $key;
+}
+
+test('the orders list starts customer choice before showing the order form and cancel actions', function (): void {
     $this->get(route('orders.index'))->assertOk()
         ->assertSee('href="'.route('orders.create').'"', false);
 
-    $response = $this->get(route('orders.create'));
+    $key = startCreateOrderWithCustomer($this, validCreateOrderData());
+    $response = $this->get(route('orders.creation.details', ['draft' => $key]));
 
     $response->assertOk()
         ->assertSee('Customer name')
@@ -52,7 +72,7 @@ test('the orders list links to a creation form with customer details items and a
         ->assertSee('Total amount (PHP)')
         ->assertSee('Add item')
         ->assertSee('Remove item')
-        ->assertSee('href="'.route('orders.index').'"', false)
+        ->assertSee('formaction="'.route('orders.creation.cancel').'"', false)
         ->assertSee('Cancel');
 
     $this->assertDatabaseCount('customers', 0);
@@ -104,7 +124,9 @@ test('an existing customer can receive another order without creating or changin
     $this->assertDatabaseCount('orders', 2);
     $this->assertDatabaseHas('customers', ['id' => $customerId, 'company_name' => 'Acme Packaging', 'contact_person' => 'Alex Cruz']);
     $this->assertDatabaseHas('orders', ['id' => 2, 'customer_id' => $customerId]);
-    $this->get(route('orders.create'))->assertOk()->assertSee('Acme Packaging');
+    $choice = $this->get(route('orders.create'))->assertOk();
+    $this->withCookie(config('session.cookie'), session()->getId())->get(route('orders.creation.customer', ['type' => 'existing', 'draft' => $choice->viewData('submissionKey')]))
+        ->assertOk()->assertSee('Acme Packaging');
 });
 
 test('resubmitting the same creation request creates only one customer order and set of items', function (): void {
@@ -165,13 +187,14 @@ test('invalid order input returns its validation message and leaves no saved rec
 
 test('validation preserves customer details and all item rows on the creation form', function (): void {
     $data = validCreateOrderData();
+    $data['submission_key'] = startCreateOrderWithCustomer($this, $data);
     $data['items'][1]['quantity'] = 0;
     $this->from(route('orders.create'))->post(route('orders.store'), $data)->assertSessionHasErrors('items.1.quantity');
 
-    $response = $this->withCookie(config('session.cookie'), session()->getId())->get(route('orders.create'));
+    $response = $this->get(route('orders.creation.details', ['draft' => $data['submission_key']]));
 
     $response->assertOk()
-        ->assertSee('value="Acme Packaging"', false)
+        ->assertSee('Acme Packaging')
         ->assertSee('value="Plastic bags"', false)
         ->assertSee('value="Zip bags"', false)
         ->assertSee('value="'.$data['submission_key'].'"', false)
@@ -229,11 +252,12 @@ test('customer names and retained item names are escaped in the list and form', 
     $this->get(route('orders.index'))->assertOk()->assertSee($customerName)->assertDontSee($customerName, false);
 
     $data = validCreateOrderData();
+    $data['submission_key'] = startCreateOrderWithCustomer($this, $data);
     $data['items'][0]['product_name'] = $itemName;
     $data['items'][0]['quantity'] = 0;
     $this->from(route('orders.create'))->post(route('orders.store'), $data)->assertSessionHasErrors('items.0.quantity');
 
-    $this->get(route('orders.create'))->assertOk()->assertSee($itemName)->assertDontSee($itemName, false);
+    $this->get(route('orders.creation.details', ['draft' => $data['submission_key']]))->assertOk()->assertSee($itemName)->assertDontSee($itemName, false);
 });
 
 test('an item save failure rolls back the new customer order and items together', function (): void {
