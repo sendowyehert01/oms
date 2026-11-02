@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\OrderDrafts;
 use App\OrderEntries;
 use Illuminate\Foundation\Http\FormRequest;
@@ -65,8 +66,16 @@ class StoreOrderRequest extends FormRequest
             'due_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:order_date'],
             'status' => ['required', Rule::in(OrderEntries::STATUSES)],
             'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*' => ['required', 'array:product_name,quantity,unit_price'],
+            'items.*' => ['required', 'array:product_name,quantity,unit_price,material_color,size,print_design_colors,sealing,sealing_other,puncher,puncher_other,customization_notes'],
             'items.*.product_name' => ['required', 'string', 'max:255'],
+            'items.*.material_color' => ['nullable', 'string', 'max:255'],
+            'items.*.size' => ['nullable', 'string', 'max:100'],
+            'items.*.print_design_colors' => ['nullable', 'string', 'max:255'],
+            'items.*.sealing' => ['nullable', 'string', Rule::in(OrderItem::SEALING_OPTIONS)],
+            'items.*.sealing_other' => ['exclude_unless:items.*.sealing,Others', 'required_if:items.*.sealing,Others', 'string', 'max:255'],
+            'items.*.puncher' => ['nullable', 'string', Rule::in(OrderItem::PUNCHER_OPTIONS)],
+            'items.*.puncher_other' => ['exclude_unless:items.*.puncher,Others', 'required_if:items.*.puncher,Others', 'string', 'max:255'],
+            'items.*.customization_notes' => ['nullable', 'string', 'max:2000'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:100000'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:999999.99', 'regex:/^\d+(?:\.\d{1,2})?$/'],
         ];
@@ -84,6 +93,8 @@ class StoreOrderRequest extends FormRequest
             'items.*.quantity.integer' => 'Each item quantity must be a whole number.',
             'items.*.unit_price.min' => 'Each unit price must be zero or greater.',
             'items.*.unit_price.regex' => 'Enter a unit price with no more than two decimal places.',
+            'items.*.sealing_other.required_if' => 'Specify the sealing type when choosing Others.',
+            'items.*.puncher_other.required_if' => 'Specify the puncher type when choosing Others.',
         ];
     }
 
@@ -97,6 +108,14 @@ class StoreOrderRequest extends FormRequest
             'items.*.product_name' => 'item name',
             'items.*.quantity' => 'quantity',
             'items.*.unit_price' => 'unit price',
+            'items.*.material_color' => 'material/color',
+            'items.*.size' => 'size and thickness',
+            'items.*.print_design_colors' => 'print design and number of colors',
+            'items.*.sealing' => 'sealing',
+            'items.*.sealing_other' => 'other sealing type',
+            'items.*.puncher' => 'puncher',
+            'items.*.puncher_other' => 'other puncher type',
+            'items.*.customization_notes' => 'remarks',
         ];
     }
 }

@@ -39,7 +39,7 @@ class OrderEntries
     }
 
     /**
-     * @return array{id: int, number: string, customer_name: string, order_date: string, due_date: string, status: string, total_amount_in_cents: int, customer: array{id: int, name: string, contact_person: string, address: string, contact_number: string}, items: array<int, array{product_name: string, quantity: int, unit_price_in_cents: int, subtotal_in_cents: int}>}|null
+     * @return array{id: int, number: string, customer_name: string, order_date: string, due_date: string, status: string, total_amount_in_cents: int, customer: array{id: int, name: string, contact_person: string, address: string, contact_number: string}, items: array<int, array{product_name: string, size: ?string, customization_notes: ?string, material_color: ?string, print_design_colors: ?string, sealing: ?string, sealing_other: ?string, puncher: ?string, puncher_other: ?string, quantity: int, unit_price_in_cents: int, subtotal_in_cents: int}>}|null
      */
     public function find(int $orderId): ?array
     {
@@ -55,6 +55,14 @@ class OrderEntries
 
         $items = $order->items->map(fn (OrderItem $item): array => [
             'product_name' => $item->product_name,
+            'material_color' => $item->material_color,
+            'size' => $item->size,
+            'print_design_colors' => $item->print_design_colors,
+            'sealing' => $item->sealing,
+            'sealing_other' => $item->sealing_other,
+            'puncher' => $item->puncher,
+            'puncher_other' => $item->puncher_other,
+            'customization_notes' => $item->customization_notes,
             'quantity' => (int) $item->quantity,
             'unit_price_in_cents' => $this->priceInCents((string) $item->unit_price),
             'subtotal_in_cents' => $this->itemSubtotalInCents($item),
@@ -107,7 +115,7 @@ class OrderEntries
     }
 
     /**
-     * @param  array{submission_key: string, customer_id?: int|string|null, customer_name?: string, contact_person?: string, address?: string, contact_number?: string, order_date: string, due_date: string, status: string, items: array<int, array{product_name: string, quantity: int|string, unit_price: int|float|string}>}  $data
+     * @param  array{submission_key: string, customer_id?: int|string|null, customer_name?: string, contact_person?: string, address?: string, contact_number?: string, order_date: string, due_date: string, status: string, items: array<int, array{product_name: string, material_color?: ?string, size?: ?string, print_design_colors?: ?string, sealing?: ?string, sealing_other?: ?string, puncher?: ?string, puncher_other?: ?string, customization_notes?: ?string, quantity: int|string, unit_price: int|float|string}>}  $data
      */
     public function create(array $data): int
     {
@@ -135,6 +143,14 @@ class OrderEntries
 
                 $order->items()->createMany(array_map(fn (array $item): array => [
                     'product_name' => $item['product_name'],
+                    'material_color' => $item['material_color'] ?? null,
+                    'size' => $item['size'] ?? null,
+                    'print_design_colors' => $item['print_design_colors'] ?? null,
+                    'sealing' => $item['sealing'] ?? null,
+                    'sealing_other' => ($item['sealing'] ?? null) === 'Others' ? ($item['sealing_other'] ?? null) : null,
+                    'puncher' => $item['puncher'] ?? null,
+                    'puncher_other' => ($item['puncher'] ?? null) === 'Others' ? ($item['puncher_other'] ?? null) : null,
+                    'customization_notes' => $item['customization_notes'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                 ], $data['items']));

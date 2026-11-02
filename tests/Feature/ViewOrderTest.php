@@ -228,19 +228,23 @@ test('customer details item names and list context are escaped', function (): vo
 
 test('database failure displays a retry and back link without exposing internal error details', function (): void {
     $orderId = createViewOrderFixture();
-    Schema::drop('order_items');
+    Schema::rename('order_items', 'unavailable_order_items');
     Exceptions::fake();
 
-    $response = $this->get(route('orders.show', ['order' => $orderId, 'search' => 'Acme', 'page' => 2]));
+    try {
+        $response = $this->get(route('orders.show', ['order' => $orderId, 'search' => 'Acme', 'page' => 2]));
 
-    $response->assertServiceUnavailable()
-        ->assertSee('Unable to load order')
-        ->assertSee('Order details could not be loaded. Please try again.')
-        ->assertSee('Try again')
-        ->assertSee('href="'.e(route('orders.show', ['order' => $orderId, 'search' => 'Acme', 'page' => 2])).'"', false)
-        ->assertSee('href="'.e(route('orders.index', ['search' => 'Acme', 'page' => 2])).'"', false)
-        ->assertDontSee('SQLSTATE')->assertDontSee('no such table');
-    Exceptions::assertReported(QueryException::class);
+        $response->assertServiceUnavailable()
+            ->assertSee('Unable to load order')
+            ->assertSee('Order details could not be loaded. Please try again.')
+            ->assertSee('Try again')
+            ->assertSee('href="'.e(route('orders.show', ['order' => $orderId, 'search' => 'Acme', 'page' => 2])).'"', false)
+            ->assertSee('href="'.e(route('orders.index', ['search' => 'Acme', 'page' => 2])).'"', false)
+            ->assertDontSee('SQLSTATE')->assertDontSee('no such table');
+        Exceptions::assertReported(QueryException::class);
+    } finally {
+        Schema::rename('unavailable_order_items', 'order_items');
+    }
 });
 
 test('non numeric order IDs cannot be used to inject a query', function (): void {
