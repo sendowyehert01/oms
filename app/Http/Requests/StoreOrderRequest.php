@@ -3,12 +3,42 @@
 namespace App\Http\Requests;
 
 use App\Models\Customer;
+use App\Models\Order;
+use App\OrderDrafts;
 use App\OrderEntries;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class StoreOrderRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $drafts = app(OrderDrafts::class);
+        $submissionKey = $this->input('submission_key');
+        $draft = $drafts->find($this->session(), $submissionKey);
+
+        if ($draft !== null && $draft['customer_type'] !== null) {
+            $drafts->rememberOrder($this->session(), $submissionKey, $this->only(['order_date', 'due_date', 'status', 'items']));
+            $this->merge(['customer_id' => null, ...$draft['customer']]);
+        } elseif (is_string($submissionKey) && Str::isUuid($submissionKey) && $this->missing('customer_id') && $this->missing('customer_name')) {
+            $customerId = Order::query()->where('submission_key', $submissionKey)->value('customer_id');
+
+            if ($customerId !== null) {
+                $this->merge(['customer_id' => $customerId]);
+            }
+        }
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        $submissionKey = $this->input('submission_key');
+
+        return app(OrderDrafts::class)->find($this->session(), $submissionKey) !== null
+            ? route('orders.creation.details', ['draft' => $submissionKey])
+            : parent::getRedirectUrl();
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      */

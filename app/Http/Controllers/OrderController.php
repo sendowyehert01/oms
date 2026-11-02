@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreOrderRequest;
-use App\Models\Customer;
 use App\Models\Order;
+use App\OrderDrafts;
 use App\OrderEntries;
 use App\SampleOrders;
 use Illuminate\Database\QueryException;
@@ -13,7 +13,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
 
@@ -54,22 +53,24 @@ class OrderController extends Controller
         return $request->hasHeader('X-Orders-Fragment') ? $view->fragment('orders-list') : $view;
     }
 
-    public function create(): View
-    {
-        $customers = Customer::query()->select('id', 'company_name')->orderBy('company_name')->get();
-        $statuses = OrderEntries::STATUSES;
-        $oldSubmissionKey = old('submission_key');
-        $submissionKey = is_string($oldSubmissionKey) && Str::isUuid($oldSubmissionKey)
-            ? $oldSubmissionKey
-            : (string) Str::uuid();
-
-        return view('orders.create', compact('customers', 'statuses', 'submissionKey'));
-    }
-
-    public function store(StoreOrderRequest $request, OrderEntries $orderEntries): RedirectResponse
+    public function store(StoreOrderRequest $request, OrderEntries $orderEntries, OrderDrafts $drafts): RedirectResponse
     {
         $data = $request->validated();
-        $orderId = $orderEntries->create($data);
+
+        try {
+            $orderId = $orderEntries->create($data);
+        } catch (Throwable $exception) {
+            if ($drafts->find($request->session(), $data['submission_key']) === null) {
+                throw $exception;
+            }
+
+            report($exception);
+
+            return to_route('orders.creation.details', ['draft' => $data['submission_key']])
+                ->withInput()->with('error', 'The order could not be saved. Please try again.');
+        }
+
+        $drafts->forget($request->session(), $data['submission_key']);
         $orderDate = Order::query()->findOrFail($orderId)->order_date->toDateString();
         $orderNumber = $orderEntries->number($orderId, $orderDate);
 
