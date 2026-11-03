@@ -6,7 +6,7 @@
     <legend class="px-2 text-sm font-semibold">Order item</legend>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <x-form-input :name="'items['.$index.'][product_name]'" :id="'item-'.$index.'-name'" :error="'items.'.$index.'.product_name'" label="Item name" :value="$item['product_name'] ?? ''" maxlength="255" />
-        <x-form-input :name="'items['.$index.'][quantity]'" :id="'item-'.$index.'-quantity'" :error="'items.'.$index.'.quantity'" label="Quantity" type="number" :value="$item['quantity'] ?? 1" min="1" max="100000" step="1" data-quantity />
+        <x-form-input :name="'items['.$index.'][quantity]'" :id="'item-'.$index.'-quantity'" :error="'items.'.$index.'.quantity'" label="Quantity" type="number" :value="$item['quantity'] ?? 1" min="1" :max="\App\Models\OrderItem::MAX_QUANTITY" step="1" data-quantity />
         <x-form-input :name="'items['.$index.'][unit_price]'" :id="'item-'.$index.'-price'" :error="'items.'.$index.'.unit_price'" label="Unit price (PHP)" type="number" :value="$item['unit_price'] ?? ''" min="0" max="999999.99" step="0.01" data-unit-price />
         <div>
             <p class="mb-2 text-sm font-medium">Subtotal (PHP)</p>

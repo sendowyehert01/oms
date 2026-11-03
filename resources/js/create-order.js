@@ -6,7 +6,7 @@ if (form) {
     const addItemButton = form.querySelector('[data-add-item]');
     const itemsError = form.querySelector('[data-items-error]');
     const submitButton = form.querySelector('[data-submit-order]');
-    const formatter = new Intl.NumberFormat('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const wholeAmountFormatter = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 });
     let nextItemIndex = 0;
     let isSubmitting = false;
 
@@ -23,15 +23,17 @@ if (form) {
 
     const priceInCents = (value) => {
         if (!/^\d+(?:\.\d{1,2})?$/.test(value)) {
-            return 0;
+            return 0n;
         }
 
         const [whole, fraction = ''] = value.split('.');
-        return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+        return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0'));
     };
 
+    const formatAmount = (cents) => `${wholeAmountFormatter.format(cents / 100n)}.${String(cents % 100n).padStart(2, '0')}`;
+
     const updateTotals = () => {
-        let totalInCents = 0;
+        let totalInCents = 0n;
         const rows = items.querySelectorAll('[data-order-item]');
 
         rows.forEach((row) => {
@@ -39,14 +41,14 @@ if (form) {
             const priceInput = row.querySelector('[data-unit-price]');
             const quantity = Number(quantityInput.value);
             const subtotalInCents = quantityInput.validity.valid && priceInput.validity.valid && Number.isInteger(quantity)
-                ? quantity * priceInCents(priceInput.value)
-                : 0;
+                ? BigInt(quantity) * priceInCents(priceInput.value)
+                : 0n;
 
-            row.querySelector('[data-subtotal]').value = formatter.format(subtotalInCents / 100);
+            row.querySelector('[data-subtotal]').value = formatAmount(subtotalInCents);
             totalInCents += subtotalInCents;
         });
 
-        form.querySelector('[data-order-total]').value = formatter.format(totalInCents / 100);
+        form.querySelector('[data-order-total]').value = formatAmount(totalInCents);
         itemsError.hidden = rows.length > 0;
         addItemButton.disabled = rows.length >= 100;
     };

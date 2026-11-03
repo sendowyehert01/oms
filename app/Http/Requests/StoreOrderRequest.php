@@ -76,7 +76,7 @@ class StoreOrderRequest extends FormRequest
             'items.*.puncher' => ['nullable', 'string', Rule::in(OrderItem::PUNCHER_OPTIONS)],
             'items.*.puncher_other' => ['exclude_unless:items.*.puncher,Others', 'required_if:items.*.puncher,Others', 'string', 'max:255'],
             'items.*.customization_notes' => ['nullable', 'string', 'max:2000'],
-            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:100000'],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:'.OrderItem::MAX_QUANTITY],
             'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:999999.99', 'regex:/^\d+(?:\.\d{1,2})?$/'],
         ];
     }
@@ -91,6 +91,7 @@ class StoreOrderRequest extends FormRequest
             'items.min' => 'Add at least one item to the order.',
             'items.*.quantity.min' => 'Each item quantity must be at least 1.',
             'items.*.quantity.integer' => 'Each item quantity must be a whole number.',
+            'items.*.quantity.max' => 'Each item quantity must not exceed '.number_format(OrderItem::MAX_QUANTITY).'.',
             'items.*.unit_price.min' => 'Each unit price must be zero or greater.',
             'items.*.unit_price.regex' => 'Enter a unit price with no more than two decimal places.',
             'items.*.sealing_other.required_if' => 'Specify the sealing type when choosing Others.',

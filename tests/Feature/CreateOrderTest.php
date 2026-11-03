@@ -171,7 +171,7 @@ test('invalid order input returns its validation message and leaves no saved rec
     'zero quantity' => ['items.0.quantity', 0, 'Each item quantity must be at least 1.'],
     'negative quantity' => ['items.0.quantity', -1, 'Each item quantity must be at least 1.'],
     'fractional quantity' => ['items.0.quantity', 1.5, 'Each item quantity must be a whole number.'],
-    'excessive quantity' => ['items.0.quantity', 100001, 'The quantity field must not be greater than 100000.'],
+    'excessive quantity' => ['items.0.quantity', 100000001, 'Each item quantity must not exceed 100,000,000.'],
     'missing price' => ['items.0.unit_price', '', 'The unit price field is required.'],
     'negative price' => ['items.0.unit_price', '-0.01', 'Each unit price must be zero or greater.'],
     'non numeric price' => ['items.0.unit_price', 'free', 'The unit price field must be a number.'],
