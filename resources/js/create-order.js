@@ -21,7 +21,15 @@ if (form) {
         });
     };
 
-    const priceInCents = (value) => {
+    const updateMeasurementInput = (row) => {
+        const isWeight = row.querySelector('[data-measurement-unit]').value === 'kgs';
+        const amountInput = row.querySelector('[data-quantity]');
+        amountInput.min = isWeight ? '0.01' : '1';
+        amountInput.step = isWeight ? '0.01' : '1';
+        row.querySelector('[data-price-unit]').textContent = isWeight ? 'Price per kg.' : 'Price per piece.';
+    };
+
+    const decimalInHundredths = (value) => {
         if (!/^\d+(?:\.\d{1,2})?$/.test(value)) {
             return 0n;
         }
@@ -39,9 +47,8 @@ if (form) {
         rows.forEach((row) => {
             const quantityInput = row.querySelector('[data-quantity]');
             const priceInput = row.querySelector('[data-unit-price]');
-            const quantity = Number(quantityInput.value);
-            const subtotalInCents = quantityInput.validity.valid && priceInput.validity.valid && Number.isInteger(quantity)
-                ? BigInt(quantity) * priceInCents(priceInput.value)
+            const subtotalInCents = quantityInput.validity.valid && priceInput.validity.valid
+                ? (decimalInHundredths(quantityInput.value) * decimalInHundredths(priceInput.value) + 50n) / 100n
                 : 0n;
 
             row.querySelector('[data-subtotal]').value = formatAmount(subtotalInCents);
@@ -68,12 +75,17 @@ if (form) {
         const newRow = template.content.firstElementChild;
         items.append(newRow);
         updateChoiceInputs(newRow);
+        updateMeasurementInput(newRow);
         newRow.querySelector('input').focus();
         updateTotals();
     });
 
     items.addEventListener('input', updateTotals);
     items.addEventListener('change', (event) => {
+        if (event.target.matches('[data-measurement-unit]')) {
+            updateMeasurementInput(event.target.closest('[data-order-item]'));
+            updateTotals();
+        }
         if (event.target.matches('[data-choice-select]')) {
             updateChoiceInputs(event.target.closest('[data-order-item]'));
         }
@@ -110,9 +122,11 @@ if (form) {
         submitButton.textContent = 'Create Order';
         form.removeAttribute('aria-busy');
         items.querySelectorAll('[data-order-item]').forEach(updateChoiceInputs);
+        items.querySelectorAll('[data-order-item]').forEach(updateMeasurementInput);
         updateTotals();
     });
 
     items.querySelectorAll('[data-order-item]').forEach(updateChoiceInputs);
+    items.querySelectorAll('[data-order-item]').forEach(updateMeasurementInput);
     updateTotals();
 }

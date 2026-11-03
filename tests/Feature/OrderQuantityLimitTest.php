@@ -39,7 +39,7 @@ function quantityLimitOrderData(string $key, array $items): array
 test('initial and template item rows show the 100 million limit', function (): void {
     $key = startQuantityLimitOrder($this);
     $response = $this->get(route('orders.creation.details', ['draft' => $key]))->assertOk();
-    $response->assertSee('quantities from 1 to 100,000,000');
+    $response->assertSee('Unit of Measurement')->assertSee('up to 100,000,000 per item');
     expect(substr_count($response->getContent(), 'max="100000000"'))->toBe(2);
 });
 
@@ -48,7 +48,7 @@ test('large quantities up to 100 million save and display exact cents', function
     $data = quantityLimitOrderData($key, [['product_name' => 'High volume bags', 'quantity' => $quantity, 'unit_price' => '999999.99']]);
     $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
     $item = OrderItem::query()->firstOrFail();
-    expect($item->quantity)->toBe($quantity);
+    expect($item->quantity)->toBe($quantity.' pcs');
     $details = $this->get(route('orders.show', ['order' => $item->order_id]))->assertOk()
         ->assertSee(number_format($quantity))->assertSee($amount);
     expect($details['order']['items'][0]['subtotal_in_cents'])->toBe($cents);
@@ -69,9 +69,9 @@ test('a quantity above 100 million is rejected and retained for correction', fun
     $key = startQuantityLimitOrder($this);
     $this->post(route('orders.store'), quantityLimitOrderData($key, [
         ['product_name' => 'High volume bags', 'quantity' => 100000001, 'unit_price' => '1.25'],
-    ]))->assertSessionHasErrors(['items.0.quantity' => 'Each item quantity must not exceed 100,000,000.']);
+    ]))->assertSessionHasErrors(['items.0.quantity' => 'Each measurement amount must not exceed 100,000,000.']);
     $this->get(route('orders.creation.details', ['draft' => $key]))->assertOk()
-        ->assertSee('value="100000001"', false)->assertSee('Each item quantity must not exceed 100,000,000.');
+        ->assertSee('value="100000001"', false)->assertSee('Each measurement amount must not exceed 100,000,000.');
     $this->assertDatabaseCount('orders', 0);
     $this->assertDatabaseCount('order_items', 0);
 });

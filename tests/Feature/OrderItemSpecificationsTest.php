@@ -76,8 +76,8 @@ test('different item specifications save independently and appear under the corr
     $this->post(route('orders.store'), itemSpecificationOrderData($key, [2 => $first, 7 => $second]))
         ->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
     $this->assertDatabaseCount('order_items', 2);
-    $this->assertDatabaseHas('order_items', $first);
-    $this->assertDatabaseHas('order_items', $second);
+    $this->assertDatabaseHas('order_items', array_replace($first, ['quantity' => '2 pcs', 'unit' => 'pcs']));
+    $this->assertDatabaseHas('order_items', array_replace($second, ['quantity' => '3 pcs', 'unit' => 'pcs']));
     $item = OrderItem::query()->where('product_name', 'Printed bags')->firstOrFail();
     $this->get(route('orders.show', ['order' => $item->order_id]))->assertOk()
         ->assertSeeInOrder(['Printed bags', 'LDPE / transparent', 'Bottom Seal', 'Special bags', 'PP / blue', 'Double heat seal', 'Oval handle'])

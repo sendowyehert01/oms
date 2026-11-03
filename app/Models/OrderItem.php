@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\ItemMeasurement;
 use Database\Factories\OrderItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class OrderItem extends Model
 {
     public const int MAX_QUANTITY = 100_000_000;
+
+    public const array MEASUREMENT_UNITS = ['pcs', 'kgs'];
 
     public const array SEALING_OPTIONS = ['Bottom Seal', 'Top Seal', 'Side Seal', 'Sando Bag', 'Others'];
 
@@ -26,12 +29,17 @@ class OrderItem extends Model
         return $this->belongsTo(Order::class);
     }
 
+    public function measurement(): ItemMeasurement
+    {
+        return ItemMeasurement::fromStored($this->quantity, $this->unit ?? 'pcs');
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
             'order_id' => 'integer',
-            'quantity' => 'integer',
+            'quantity' => 'string',
             'unit_price' => 'decimal:2',
         ];
     }

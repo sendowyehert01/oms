@@ -97,8 +97,8 @@ test('creating an order saves its customer and items and redirects to the update
     ]);
     $this->assertDatabaseHas('orders', ['id' => 1, 'customer_id' => 1, 'order_date' => '2026-10-31', 'terms_of_payment' => 'Net 30', 'due_date' => null, 'status' => 'Pending']);
     $this->assertDatabaseCount('order_items', 2);
-    $this->assertDatabaseHas('order_items', ['order_id' => 1, 'product_name' => 'Plastic bags', 'quantity' => 2, 'unit_price' => '9.95']);
-    $this->assertDatabaseHas('order_items', ['order_id' => 1, 'product_name' => 'Zip bags', 'quantity' => 3, 'unit_price' => '3.10']);
+    $this->assertDatabaseHas('order_items', ['order_id' => 1, 'product_name' => 'Plastic bags', 'quantity' => '2 pcs', 'unit' => 'pcs', 'unit_price' => '9.95']);
+    $this->assertDatabaseHas('order_items', ['order_id' => 1, 'product_name' => 'Zip bags', 'quantity' => '3 pcs', 'unit' => 'pcs', 'unit_price' => '3.10']);
 
     $this->get($response->headers->get('Location'))->assertOk()
         ->assertSee('created successfully.')
@@ -168,10 +168,10 @@ test('invalid order input returns its validation message and leaves no saved rec
     'empty items' => ['items', [], 'Add at least one item to the order.'],
     'non array items' => ['items', 'invalid', 'The items field must be an array.'],
     'missing item name' => ['items.0.product_name', '', 'The item name field is required.'],
-    'zero quantity' => ['items.0.quantity', 0, 'Each item quantity must be at least 1.'],
-    'negative quantity' => ['items.0.quantity', -1, 'Each item quantity must be at least 1.'],
-    'fractional quantity' => ['items.0.quantity', 1.5, 'Each item quantity must be a whole number.'],
-    'excessive quantity' => ['items.0.quantity', 100000001, 'Each item quantity must not exceed 100,000,000.'],
+    'zero quantity' => ['items.0.quantity', 0, 'Enter at least 1 for the selected measurement unit.'],
+    'negative quantity' => ['items.0.quantity', -1, 'Enter at least 1 for the selected measurement unit.'],
+    'fractional quantity' => ['items.0.quantity', 1.5, 'The amount in pcs must be a whole number.'],
+    'excessive quantity' => ['items.0.quantity', 100000001, 'Each measurement amount must not exceed 100,000,000.'],
     'missing price' => ['items.0.unit_price', '', 'The unit price field is required.'],
     'negative price' => ['items.0.unit_price', '-0.01', 'Each unit price must be zero or greater.'],
     'non numeric price' => ['items.0.unit_price', 'free', 'The unit price field must be a number.'],
@@ -199,7 +199,7 @@ test('validation preserves customer details and all item rows on the creation fo
         ->assertSee('value="Plastic bags"', false)
         ->assertSee('value="Zip bags"', false)
         ->assertSee('value="'.$data['submission_key'].'"', false)
-        ->assertSee('Each item quantity must be at least 1.');
+        ->assertSee('Enter at least 1 for the selected measurement unit.');
 });
 
 test('malformed item rows and field values can be displayed again without a server error', function (): void {
