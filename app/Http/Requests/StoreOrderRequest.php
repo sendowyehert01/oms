@@ -9,6 +9,7 @@ use App\OrderDrafts;
 use App\OrderEntries;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
+use Illuminate\Validation\NestedRules;
 use Illuminate\Validation\Rule;
 
 class StoreOrderRequest extends FormRequest
@@ -51,7 +52,7 @@ class StoreOrderRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, array<mixed>>
+     * @return array<string, array<mixed>|NestedRules>
      */
     public function rules(): array
     {
@@ -66,7 +67,7 @@ class StoreOrderRequest extends FormRequest
             'terms_of_payment' => ['required', 'string', 'max:255'],
             'status' => ['required', Rule::in(OrderEntries::STATUSES)],
             'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*' => ['required', 'array:product_name,quantity,unit_price,material_color,size,print_design_colors,sealing,sealing_other,puncher,puncher_other,customization_notes'],
+            'items.*' => ['required', 'array:product_name,quantity,unit,unit_price,material_color,size,print_design_colors,sealing,sealing_other,puncher,puncher_other,customization_notes'],
             'items.*.product_name' => ['required', 'string', 'max:255'],
             'items.*.material_color' => ['nullable', 'string', 'max:255'],
             'items.*.size' => ['nullable', 'string', 'max:100'],
@@ -76,7 +77,14 @@ class StoreOrderRequest extends FormRequest
             'items.*.puncher' => ['nullable', 'string', Rule::in(OrderItem::PUNCHER_OPTIONS)],
             'items.*.puncher_other' => ['exclude_unless:items.*.puncher,Others', 'required_if:items.*.puncher,Others', 'string', 'max:255'],
             'items.*.customization_notes' => ['nullable', 'string', 'max:2000'],
-            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:100000'],
+            'items.*.quantity' => Rule::forEach(function (mixed $value, string $attribute): array {
+                $unit = $this->input(str_replace('.quantity', '.unit', $attribute), 'pcs');
+
+                return $unit === 'kgs'
+                    ? ['required', 'numeric', 'min:0.01', 'max:'.OrderItem::MAX_QUANTITY, 'regex:/^\d+(?:\.\d{1,2})?$/']
+                    : ['required', 'integer', 'min:1', 'max:'.OrderItem::MAX_QUANTITY, 'regex:/^\d+$/'];
+            }),
+            'items.*.unit' => ['sometimes', 'required', 'string', Rule::in(OrderItem::MEASUREMENT_UNITS)],
             'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:999999.99', 'regex:/^\d+(?:\.\d{1,2})?$/'],
         ];
     }
@@ -89,8 +97,10 @@ class StoreOrderRequest extends FormRequest
         return [
             'items.required' => 'Add at least one item to the order.',
             'items.min' => 'Add at least one item to the order.',
-            'items.*.quantity.min' => 'Each item quantity must be at least 1.',
-            'items.*.quantity.integer' => 'Each item quantity must be a whole number.',
+            'items.*.quantity.min' => 'Enter at least :min for the selected measurement unit.',
+            'items.*.quantity.integer' => 'The amount in pcs must be a whole number.',
+            'items.*.quantity.max' => 'Each measurement amount must not exceed '.number_format(OrderItem::MAX_QUANTITY).'.',
+            'items.*.quantity.regex' => 'Enter whole numbers for pcs or weights with no more than two decimal places for kgs.',
             'items.*.unit_price.min' => 'Each unit price must be zero or greater.',
             'items.*.unit_price.regex' => 'Enter a unit price with no more than two decimal places.',
             'items.*.sealing_other.required_if' => 'Specify the sealing type when choosing Others.',
@@ -106,7 +116,8 @@ class StoreOrderRequest extends FormRequest
         return [
             'customer_name' => 'customer name',
             'items.*.product_name' => 'item name',
-            'items.*.quantity' => 'quantity',
+            'items.*.quantity' => 'measurement amount',
+            'items.*.unit' => 'measurement unit',
             'items.*.unit_price' => 'unit price',
             'items.*.material_color' => 'material/color',
             'items.*.size' => 'size and thickness',

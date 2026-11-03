@@ -1,13 +1,36 @@
 @props(['index', 'item' => []])
 
 @php($item = is_array($item) ? $item : [])
+@php($measurementUnit = is_scalar($item['unit'] ?? 'pcs') ? (string) ($item['unit'] ?? 'pcs') : 'pcs')
 
 <fieldset data-order-item class="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
     <legend class="px-2 text-sm font-semibold">Order item</legend>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <x-form-input :name="'items['.$index.'][product_name]'" :id="'item-'.$index.'-name'" :error="'items.'.$index.'.product_name'" label="Item name" :value="$item['product_name'] ?? ''" maxlength="255" />
-        <x-form-input :name="'items['.$index.'][quantity]'" :id="'item-'.$index.'-quantity'" :error="'items.'.$index.'.quantity'" label="Quantity" type="number" :value="$item['quantity'] ?? 1" min="1" max="100000" step="1" data-quantity />
-        <x-form-input :name="'items['.$index.'][unit_price]'" :id="'item-'.$index.'-price'" :error="'items.'.$index.'.unit_price'" label="Unit price (PHP)" type="number" :value="$item['unit_price'] ?? ''" min="0" max="999999.99" step="0.01" data-unit-price />
+        <div>
+            <label for="item-{{ $index }}-quantity" class="mb-2 block text-sm font-medium">Unit of Measurement <span aria-hidden="true" class="text-rose-600">*</span></label>
+            <div class="flex gap-2">
+                <input id="item-{{ $index }}-quantity" name="items[{{ $index }}][quantity]" type="number"
+                    value="{{ is_scalar($item['quantity'] ?? 1) ? ($item['quantity'] ?? 1) : '' }}" required data-quantity
+                    min="{{ $measurementUnit === 'kgs' ? '0.01' : '1' }}" max="{{ \App\Models\OrderItem::MAX_QUANTITY }}" step="{{ $measurementUnit === 'kgs' ? '0.01' : '1' }}"
+                    @if ($errors->has('items.'.$index.'.quantity')) aria-invalid="true" aria-describedby="item-{{ $index }}-quantity-error" @endif
+                    class="min-h-11 min-w-0 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-2 focus:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950">
+                <label for="item-{{ $index }}-unit" class="sr-only">Measurement unit</label>
+                <select id="item-{{ $index }}-unit" name="items[{{ $index }}][unit]" required data-measurement-unit
+                    @if ($errors->has('items.'.$index.'.unit')) aria-invalid="true" aria-describedby="item-{{ $index }}-unit-error" @endif
+                    class="min-h-11 w-20 shrink-0 rounded-lg border border-slate-300 bg-white px-2 text-sm focus:outline-2 focus:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950">
+                    @foreach (\App\Models\OrderItem::MEASUREMENT_UNITS as $unit)
+                        <option value="{{ $unit }}" @selected($measurementUnit === $unit)>{{ $unit }}</option>
+                    @endforeach
+                </select>
+            </div>
+            @error('items.'.$index.'.quantity')<p id="item-{{ $index }}-quantity-error" class="mt-2 text-sm text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+            @error('items.'.$index.'.unit')<p id="item-{{ $index }}-unit-error" class="mt-2 text-sm text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+        </div>
+        <div>
+            <x-form-input :name="'items['.$index.'][unit_price]'" :id="'item-'.$index.'-price'" :error="'items.'.$index.'.unit_price'" label="Unit price (PHP)" type="number" :value="$item['unit_price'] ?? ''" min="0" max="999999.99" step="0.01" data-unit-price />
+            <p data-price-unit class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ $measurementUnit === 'kgs' ? 'Price per kg.' : 'Price per piece.' }}</p>
+        </div>
         <div>
             <p class="mb-2 text-sm font-medium">Subtotal (PHP)</p>
             <output data-subtotal for="item-{{ $index }}-quantity item-{{ $index }}-price" class="flex min-h-11 items-center text-sm font-semibold tabular-nums">0.00</output>

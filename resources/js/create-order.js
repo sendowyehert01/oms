@@ -6,7 +6,7 @@ if (form) {
     const addItemButton = form.querySelector('[data-add-item]');
     const itemsError = form.querySelector('[data-items-error]');
     const submitButton = form.querySelector('[data-submit-order]');
-    const formatter = new Intl.NumberFormat('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const wholeAmountFormatter = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 });
     let nextItemIndex = 0;
     let isSubmitting = false;
 
@@ -21,32 +21,41 @@ if (form) {
         });
     };
 
-    const priceInCents = (value) => {
+    const updateMeasurementInput = (row) => {
+        const isWeight = row.querySelector('[data-measurement-unit]').value === 'kgs';
+        const amountInput = row.querySelector('[data-quantity]');
+        amountInput.min = isWeight ? '0.01' : '1';
+        amountInput.step = isWeight ? '0.01' : '1';
+        row.querySelector('[data-price-unit]').textContent = isWeight ? 'Price per kg.' : 'Price per piece.';
+    };
+
+    const decimalInHundredths = (value) => {
         if (!/^\d+(?:\.\d{1,2})?$/.test(value)) {
-            return 0;
+            return 0n;
         }
 
         const [whole, fraction = ''] = value.split('.');
-        return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+        return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0'));
     };
 
+    const formatAmount = (cents) => `${wholeAmountFormatter.format(cents / 100n)}.${String(cents % 100n).padStart(2, '0')}`;
+
     const updateTotals = () => {
-        let totalInCents = 0;
+        let totalInCents = 0n;
         const rows = items.querySelectorAll('[data-order-item]');
 
         rows.forEach((row) => {
             const quantityInput = row.querySelector('[data-quantity]');
             const priceInput = row.querySelector('[data-unit-price]');
-            const quantity = Number(quantityInput.value);
-            const subtotalInCents = quantityInput.validity.valid && priceInput.validity.valid && Number.isInteger(quantity)
-                ? quantity * priceInCents(priceInput.value)
-                : 0;
+            const subtotalInCents = quantityInput.validity.valid && priceInput.validity.valid
+                ? (decimalInHundredths(quantityInput.value) * decimalInHundredths(priceInput.value) + 50n) / 100n
+                : 0n;
 
-            row.querySelector('[data-subtotal]').value = formatter.format(subtotalInCents / 100);
+            row.querySelector('[data-subtotal]').value = formatAmount(subtotalInCents);
             totalInCents += subtotalInCents;
         });
 
-        form.querySelector('[data-order-total]').value = formatter.format(totalInCents / 100);
+        form.querySelector('[data-order-total]').value = formatAmount(totalInCents);
         itemsError.hidden = rows.length > 0;
         addItemButton.disabled = rows.length >= 100;
     };
@@ -66,12 +75,17 @@ if (form) {
         const newRow = template.content.firstElementChild;
         items.append(newRow);
         updateChoiceInputs(newRow);
+        updateMeasurementInput(newRow);
         newRow.querySelector('input').focus();
         updateTotals();
     });
 
     items.addEventListener('input', updateTotals);
     items.addEventListener('change', (event) => {
+        if (event.target.matches('[data-measurement-unit]')) {
+            updateMeasurementInput(event.target.closest('[data-order-item]'));
+            updateTotals();
+        }
         if (event.target.matches('[data-choice-select]')) {
             updateChoiceInputs(event.target.closest('[data-order-item]'));
         }
@@ -108,9 +122,11 @@ if (form) {
         submitButton.textContent = 'Create Order';
         form.removeAttribute('aria-busy');
         items.querySelectorAll('[data-order-item]').forEach(updateChoiceInputs);
+        items.querySelectorAll('[data-order-item]').forEach(updateMeasurementInput);
         updateTotals();
     });
 
     items.querySelectorAll('[data-order-item]').forEach(updateChoiceInputs);
+    items.querySelectorAll('[data-order-item]').forEach(updateMeasurementInput);
     updateTotals();
 }

@@ -46,7 +46,7 @@ test('date decimal and quantity casts preserve persisted values', function (): v
 
     expect($order->order_date->toDateString())->toBe('2024-02-29');
     expect($order->due_date->toDateString())->toBe('2024-03-07');
-    expect($item->quantity)->toBe(3);
+    expect($item->quantity)->toBe('3');
     expect($item->unit_price)->toBe('0.10');
     expect($payment->payment_date->toDateString())->toBe('2024-03-01');
     expect($payment->amount)->toBe('25.50');

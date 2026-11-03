@@ -43,7 +43,7 @@
                 <h2 id="items-heading" class="text-lg font-semibold">Order items</h2>
                 <button type="button" data-add-item class="inline-flex min-h-11 items-center rounded-lg border border-indigo-200 px-4 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:border-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-950">Add item</button>
             </div>
-            <p class="mb-4 text-sm text-slate-500 dark:text-slate-400">Add up to 100 items, with quantities from 1 to 100,000 and unit prices up to PHP 999,999.99.</p>
+            <p class="mb-4 text-sm text-slate-500 dark:text-slate-400">Add up to 100 items. Enter whole numbers for pcs or weights with up to two decimal places for kgs, up to {{ number_format(\App\Models\OrderItem::MAX_QUANTITY) }} per item. Unit prices can be up to PHP 999,999.99 per selected unit.</p>
             @php
                 $oldItems = $orderInput['items'] ?? [['product_name' => '', 'quantity' => 1, 'unit_price' => '']];
                 $items = is_array($oldItems) ? $oldItems : [];

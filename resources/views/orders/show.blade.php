@@ -51,7 +51,7 @@
                 <thead class="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
                     <tr>
                         <th scope="col" class="px-6 py-4">Item name</th>
-                        <th scope="col" class="px-6 py-4 text-right">Quantity</th>
+                        <th scope="col" class="px-6 py-4 text-right">Unit of Measurement</th>
                         <th scope="col" class="px-6 py-4 text-right">Unit price (PHP)</th>
                         <th scope="col" class="px-6 py-4 text-right">Subtotal (PHP)</th>
                     </tr>
@@ -75,9 +75,9 @@
                                     @endforeach
                                 </dl>
                             </th>
-                            <td class="px-6 py-5 text-right tabular-nums">{{ number_format($item['quantity']) }}</td>
-                            <td class="px-6 py-5 text-right whitespace-nowrap tabular-nums">{{ number_format($item['unit_price_in_cents'] / 100, 2) }}</td>
-                            <td class="px-6 py-5 text-right font-medium whitespace-nowrap tabular-nums">{{ number_format($item['subtotal_in_cents'] / 100, 2) }}</td>
+                            <td class="px-6 py-5 text-right whitespace-nowrap tabular-nums">{{ $item['measurement'] ?? number_format($item['quantity']).' pcs' }}</td>
+                            <td class="px-6 py-5 text-right whitespace-nowrap tabular-nums"><x-money :cents="$item['unit_price_in_cents']" /></td>
+                            <td class="px-6 py-5 text-right font-medium whitespace-nowrap tabular-nums"><x-money :cents="$item['subtotal_in_cents']" /></td>
                         </tr>
                     @empty
                         <tr><td colspan="4" class="px-6 py-10 text-center text-slate-500 dark:text-slate-400">No items are recorded for this order.</td></tr>
@@ -87,7 +87,7 @@
         </div>
         <div class="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 bg-slate-50 px-6 py-5 dark:border-slate-800 dark:bg-slate-950/40">
             <p class="font-semibold">Total amount (PHP)</p>
-            <p class="text-2xl font-semibold tabular-nums">{{ number_format($order['total_amount_in_cents'] / 100, 2) }}</p>
+            <p class="text-2xl font-semibold tabular-nums"><x-money :cents="$order['total_amount_in_cents']" /></p>
         </div>
     </section>
 </x-app-layout>

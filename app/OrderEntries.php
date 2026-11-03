@@ -25,7 +25,7 @@ class OrderEntries
 
         return Order::query()
             ->select('id', 'customer_id', 'order_date', 'status')
-            ->with(['customer:id,company_name', 'items:id,order_id,quantity,unit_price'])
+            ->with(['customer:id,company_name', 'items:id,order_id,quantity,unit,unit_price'])
             ->orderByDesc('id')
             ->get()
             ->map(fn (Order $order): array => [
@@ -39,7 +39,7 @@ class OrderEntries
     }
 
     /**
-     * @return array{id: int, number: string, customer_name: string, order_date: string, terms_of_payment: ?string, due_date: ?string, status: string, total_amount_in_cents: int, customer: array{id: int, name: string, contact_person: string, address: string, contact_number: string}, items: array<int, array{product_name: string, size: ?string, customization_notes: ?string, material_color: ?string, print_design_colors: ?string, sealing: ?string, sealing_other: ?string, puncher: ?string, puncher_other: ?string, quantity: int, unit_price_in_cents: int, subtotal_in_cents: int}>}|null
+     * @return array{id: int, number: string, customer_name: string, order_date: string, terms_of_payment: ?string, due_date: ?string, status: string, total_amount_in_cents: int, customer: array{id: int, name: string, contact_person: string, address: string, contact_number: string}, items: array<int, array{product_name: string, size: ?string, customization_notes: ?string, material_color: ?string, print_design_colors: ?string, sealing: ?string, sealing_other: ?string, puncher: ?string, puncher_other: ?string, quantity: string, measurement: string, unit_price_in_cents: int, subtotal_in_cents: int}>}|null
      */
     public function find(int $orderId): ?array
     {
@@ -63,7 +63,8 @@ class OrderEntries
             'puncher' => $item->puncher,
             'puncher_other' => $item->puncher_other,
             'customization_notes' => $item->customization_notes,
-            'quantity' => (int) $item->quantity,
+            'quantity' => $item->quantity,
+            'measurement' => $item->measurement()->displayValue(),
             'unit_price_in_cents' => $this->priceInCents((string) $item->unit_price),
             'subtotal_in_cents' => $this->itemSubtotalInCents($item),
         ]);
@@ -116,7 +117,7 @@ class OrderEntries
     }
 
     /**
-     * @param  array{submission_key: string, customer_id?: int|string|null, customer_name?: string, contact_person?: string, address?: string, contact_number?: string, order_date: string, terms_of_payment: string, status: string, items: array<int, array{product_name: string, material_color?: ?string, size?: ?string, print_design_colors?: ?string, sealing?: ?string, sealing_other?: ?string, puncher?: ?string, puncher_other?: ?string, customization_notes?: ?string, quantity: int|string, unit_price: int|float|string}>}  $data
+     * @param  array{submission_key: string, customer_id?: int|string|null, customer_name?: string, contact_person?: string, address?: string, contact_number?: string, order_date: string, terms_of_payment: string, status: string, items: array<int, array{product_name: string, material_color?: ?string, size?: ?string, print_design_colors?: ?string, sealing?: ?string, sealing_other?: ?string, puncher?: ?string, puncher_other?: ?string, customization_notes?: ?string, quantity: int|float|string, unit?: string, unit_price: int|float|string}>}  $data
      */
     public function create(array $data): int
     {
@@ -152,7 +153,8 @@ class OrderEntries
                     'puncher' => $item['puncher'] ?? null,
                     'puncher_other' => ($item['puncher'] ?? null) === 'Others' ? ($item['puncher_other'] ?? null) : null,
                     'customization_notes' => $item['customization_notes'] ?? null,
-                    'quantity' => $item['quantity'],
+                    'quantity' => ItemMeasurement::fromInput($item['quantity'], $item['unit'] ?? 'pcs')->storageValue(),
+                    'unit' => $item['unit'] ?? 'pcs',
                     'unit_price' => $item['unit_price'],
                 ], $data['items']));
 
@@ -183,6 +185,6 @@ class OrderEntries
 
     private function itemSubtotalInCents(OrderItem $item): int
     {
-        return (int) $item->quantity * $this->priceInCents((string) $item->unit_price);
+        return $item->measurement()->subtotalInCents($this->priceInCents((string) $item->unit_price));
     }
 }
