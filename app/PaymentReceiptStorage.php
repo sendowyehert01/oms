@@ -4,8 +4,10 @@ namespace App;
 
 use App\Models\Payment;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -21,7 +23,7 @@ class PaymentReceiptStorage
             'local' => true,
             'supabase' => is_string(config('payment-receipts.supabase.url'))
                 && str_starts_with(config('payment-receipts.supabase.url'), 'https://')
-                && filled(config('payment-receipts.supabase.secret_key'))
+                && $this->hasSupabaseSecretKey()
                 && filled(config('payment-receipts.supabase.bucket')),
             default => false,
         };
@@ -60,6 +62,7 @@ class PaymentReceiptStorage
                     ->post($this->objectUrl($metadata['receipt_bucket'], $path));
 
                 if (! $response->successful()) {
+                    $this->logSupabaseFailure($response, 'upload');
                     throw new RuntimeException('The Supabase receipt upload failed.');
                 }
             }
@@ -92,6 +95,7 @@ class PaymentReceiptStorage
         }
 
         if (! $response->successful()) {
+            $this->logSupabaseFailure($response, 'download');
             throw new RuntimeException('The Supabase receipt download failed.');
         }
 
@@ -110,6 +114,7 @@ class PaymentReceiptStorage
                 $response = $this->supabase()->delete($this->objectUrl($metadata['receipt_bucket']), ['prefixes' => [$metadata['receipt_path']]]);
 
                 if (! $response->successful()) {
+                    $this->logSupabaseFailure($response, 'cleanup');
                     throw new RuntimeException('Supabase receipt cleanup failed.');
                 }
             }
@@ -120,12 +125,43 @@ class PaymentReceiptStorage
 
     private function supabase(): PendingRequest
     {
-        if (! filled(config('payment-receipts.supabase.url')) || ! filled(config('payment-receipts.supabase.secret_key'))) {
+        if (! filled(config('payment-receipts.supabase.url')) || ! $this->hasSupabaseSecretKey()) {
             throw new RuntimeException('Supabase receipt storage is not configured.');
         }
 
         return Http::withHeaders(['apikey' => config('payment-receipts.supabase.secret_key')])
             ->connectTimeout(5)->timeout(20)->withoutRedirecting();
+    }
+
+    private function hasSupabaseSecretKey(): bool
+    {
+        $key = config('payment-receipts.supabase.secret_key');
+
+        return is_string($key) && str_starts_with($key, 'sb_secret_') && strlen($key) > strlen('sb_secret_');
+    }
+
+    private function logSupabaseFailure(Response $response, string $operation): void
+    {
+        $errorCode = $response->json('code') ?? $response->json('error');
+        $errorCode = match ($errorCode) {
+            'Bucket not found' => 'NoSuchBucket',
+            'Unauthorized', 'unauthorized' => 'AccessDenied',
+            'not_found' => 'NotFound',
+            'already_exists' => 'ResourceAlreadyExists',
+            default => $errorCode,
+        };
+        $knownErrorCodes = [
+            'NoSuchBucket', 'NoSuchKey', 'NotFound', 'InvalidJWT', 'AccessDenied',
+            'InvalidRequest', 'TenantNotFound', 'EntityTooLarge', 'InternalError',
+            'ResourceAlreadyExists', 'InvalidBucketName', 'InvalidKey', 'InvalidMimeType',
+            'KeyAlreadyExists', 'SlowDown',
+        ];
+
+        Log::error('Supabase receipt request failed.', [
+            'operation' => $operation,
+            'http_status' => $response->status(),
+            'error_code' => in_array($errorCode, $knownErrorCodes, true) ? $errorCode : 'Unknown',
+        ]);
     }
 
     private function objectUrl(string $bucket, ?string $path = null, bool $authenticated = false): string

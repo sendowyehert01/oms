@@ -10,6 +10,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -114,7 +115,39 @@ test('incomplete remote configuration prevents receipt uploads while ordinary pa
     'missing URL' => ['payment-receipts.supabase.url', null],
     'insecure URL' => ['payment-receipts.supabase.url', 'http://receipts.example.test'],
     'missing key' => ['payment-receipts.supabase.secret_key', null],
+    'publishable key' => ['payment-receipts.supabase.secret_key', 'sb_publishable_public_key'],
+    'legacy key' => ['payment-receipts.supabase.secret_key', 'eyJlegacyKey'],
+    'empty secret key' => ['payment-receipts.supabase.secret_key', 'sb_secret_'],
     'missing bucket' => ['payment-receipts.supabase.bucket', ''],
+]);
+
+test('failed receipt uploads log the HTTP status and safe storage code without exposing upstream secrets', function (mixed $body, string $expectedCode): void {
+    $order = supabaseReceiptOrder();
+    Exceptions::fake();
+    Log::spy();
+    Http::fake([
+        'https://receipts.example.test/storage/v1/object/payment-receipts/*' => Http::response($body, 403),
+        'https://receipts.example.test/storage/v1/object/payment-receipts' => Http::response([], 200),
+    ]);
+
+    $this->post(route('orders.payments.store', ['order' => $order]), supabaseReceiptData())
+        ->assertSessionHas('error', 'The payment could not be saved. Please try again.');
+
+    Log::shouldHaveReceived('error')->once()->with('Supabase receipt request failed.', [
+        'operation' => 'upload', 'http_status' => 403, 'error_code' => $expectedCode,
+    ]);
+    $this->get(route('orders.payments.create', ['order' => $order]))->assertOk()
+        ->assertDontSee('sb_secret_test_receipts')->assertDontSee('Private upstream details')->assertDontSee($expectedCode);
+    $this->assertDatabaseCount('payments', 0);
+    Storage::disk('local')->assertEmpty();
+    Http::assertSentCount(2);
+})->with([
+    'modern response' => [['code' => 'AccessDenied', 'message' => 'Private upstream details: sb_secret_test_receipts'], 'AccessDenied'],
+    'legacy response' => [['error' => 'Unauthorized', 'message' => 'Private upstream details'], 'AccessDenied'],
+    'bucket response' => [['code' => 'NoSuchBucket', 'message' => 'Private upstream details'], 'NoSuchBucket'],
+    'untrusted code' => [['code' => 'sb_secret_test_receipts', 'message' => 'Private upstream details'], 'Unknown'],
+    'malformed code' => [['code' => ['sb_secret_test_receipts']], 'Unknown'],
+    'non-JSON response' => ['Private upstream details: sb_secret_test_receipts', 'Unknown'],
 ]);
 
 test('failed remote uploads do not record payments and attempt orphan cleanup', function (int $status): void {
@@ -158,6 +191,7 @@ test('a connection failure during upload does not save a payment or create a loc
 test('a database failure cleans remote files and a cleanup failure retains the original error', function (int $cleanupStatus): void {
     $order = supabaseReceiptOrder();
     Exceptions::fake();
+    Log::spy();
     Http::fake([
         'https://receipts.example.test/storage/v1/object/payment-receipts/*' => Http::response([], 200),
         'https://receipts.example.test/storage/v1/object/payment-receipts' => Http::response([], $cleanupStatus),
@@ -182,6 +216,11 @@ test('a database failure cleans remote files and a cleanup failure retains the o
 
         if ($cleanupStatus === 500) {
             Exceptions::assertReported(fn (RuntimeException $exception): bool => $exception->getMessage() === 'Supabase receipt cleanup failed.');
+            Log::shouldHaveReceived('error')->once()->with('Supabase receipt request failed.', [
+                'operation' => 'cleanup', 'http_status' => 500, 'error_code' => 'Unknown',
+            ]);
+        } else {
+            Log::shouldNotHaveReceived('error');
         }
     } finally {
         Event::forget($event);
@@ -195,20 +234,41 @@ test('remote download failures show a retry page without exposing upstream detai
         'receipt_path' => 'payment-receipts/'.Str::uuid().'.pdf', 'receipt_name' => 'receipt.pdf',
     ]);
     Exceptions::fake();
+    Log::spy();
     Http::fake(['https://receipts.example.test/storage/v1/object/authenticated/payment-receipts/*' => Http::response('Private upstream details', $status)]);
 
     $response = $this->get(route('orders.payments.receipt', ['order' => $order, 'payment' => $payment]));
 
     if ($status === 404) {
         $response->assertNotFound();
+        Log::shouldNotHaveReceived('error');
     } else {
         $response->assertStatus(503)->assertSee('The receipt could not be downloaded. Please try again.')
             ->assertDontSee('Private upstream details')->assertDontSee('sb_secret_test_receipts');
+        Log::shouldHaveReceived('error')->once()->with('Supabase receipt request failed.', [
+            'operation' => 'download', 'http_status' => $status, 'error_code' => 'Unknown',
+        ]);
     }
 
     Http::assertSentCount(1);
     Storage::disk('local')->assertEmpty();
 })->with(['missing receipt' => 404, 'unauthorised' => 401, 'redirect' => 302, 'server error' => 500]);
+
+test('a publishable key cannot be used to download a private receipt', function (): void {
+    $order = supabaseReceiptOrder();
+    $payment = Payment::factory()->for($order)->create([
+        'receipt_storage' => 'supabase', 'receipt_bucket' => 'payment-receipts',
+        'receipt_path' => 'payment-receipts/'.Str::uuid().'.pdf', 'receipt_name' => 'receipt.pdf',
+    ]);
+    config(['payment-receipts.supabase.secret_key' => 'sb_publishable_public_key']);
+    Exceptions::fake();
+
+    $this->get(route('orders.payments.receipt', ['order' => $order, 'payment' => $payment]))
+        ->assertStatus(503)->assertSee('The receipt could not be downloaded. Please try again.');
+
+    Http::assertNothingSent();
+    Storage::disk('local')->assertEmpty();
+});
 
 test('invalid payments and duplicate submissions never create additional remote uploads', function (): void {
     $order = supabaseReceiptOrder();
