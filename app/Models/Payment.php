@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['order_id', 'payment_date', 'amount', 'payment_type', 'submission_key'])]
+#[Fillable(['order_id', 'payment_date', 'amount', 'payment_type', 'submission_key', 'receipt_storage', 'receipt_bucket', 'receipt_path', 'receipt_name', 'receipt_mime_type', 'receipt_size', 'receipt_sha256'])]
 class Payment extends Model
 {
     public const array TYPES = ['down_payment' => 'Downpayment', 'full_payment' => 'Fully Paid'];
@@ -29,6 +29,7 @@ class Payment extends Model
             'order_id' => 'integer',
             'payment_date' => 'date:Y-m-d',
             'amount' => 'decimal:2',
+            'receipt_size' => 'integer',
         ];
     }
 }

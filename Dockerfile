@@ -30,6 +30,10 @@ ENV PORT=10000 \
     LOG_CHANNEL=stderr \
     MAIL_MAILER=log
 
+ENV PAYMENT_RECEIPT_STORAGE=supabase
+
+COPY config/php-uploads.ini /usr/local/etc/php/conf.d/oms-uploads.ini
+
 WORKDIR /var/www/html
 
 COPY . .

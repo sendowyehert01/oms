@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\OrderEntries;
 use App\PaymentEntries;
+use App\PaymentReceiptStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -16,7 +17,7 @@ use Throwable;
 
 class PaymentController extends Controller
 {
-    public function create(Request $request, Order $order, PaymentEntries $paymentEntries, OrderEntries $orderEntries): View
+    public function create(Request $request, Order $order, PaymentEntries $paymentEntries, OrderEntries $orderEntries, PaymentReceiptStorage $receiptStorage): View
     {
         $order->load('customer');
         $summary = $paymentEntries->summary($order);
@@ -24,8 +25,9 @@ class PaymentController extends Controller
         $submissionKey = $request->old('submission_key');
         $submissionKey = is_string($submissionKey) && Str::isUuid($submissionKey) ? $submissionKey : (string) Str::uuid();
         $paymentTypes = Payment::TYPES;
+        $receiptUploadsAvailable = $receiptStorage->available();
 
-        return view('orders.payment', compact('order', 'summary', 'orderNumber', 'submissionKey', 'paymentTypes'));
+        return view('orders.payment', compact('order', 'summary', 'orderNumber', 'submissionKey', 'paymentTypes', 'receiptUploadsAvailable'));
     }
 
     public function store(StorePaymentRequest $request, Order $order, PaymentEntries $paymentEntries): RedirectResponse

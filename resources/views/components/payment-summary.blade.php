@@ -19,10 +19,21 @@
         <div class="overflow-x-auto border-t border-slate-200 dark:border-slate-800" role="region" aria-label="Payment history" tabindex="0">
             <table class="w-full min-w-100 text-left text-sm">
                 <caption class="sr-only">Recorded payment dates, types, and amounts in Philippine pesos</caption>
-                <thead class="bg-slate-50 text-slate-500 dark:bg-slate-950/40 dark:text-slate-400"><tr><th scope="col" class="px-6 py-4">Date</th><th scope="col" class="px-6 py-4">Payment type</th><th scope="col" class="px-6 py-4 text-right">Amount (PHP)</th></tr></thead>
+                <thead class="bg-slate-50 text-slate-500 dark:bg-slate-950/40 dark:text-slate-400"><tr><th scope="col" class="px-6 py-4">Date</th><th scope="col" class="px-6 py-4">Payment type</th><th scope="col" class="px-6 py-4 text-right">Amount (PHP)</th><th scope="col" class="px-6 py-4">Receipt</th></tr></thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                     @foreach ($summary['payments'] as $payment)
-                        <tr><td class="px-6 py-4 whitespace-nowrap"><time datetime="{{ $payment['date'] }}">{{ \Illuminate\Support\Carbon::parse($payment['date'])->format('M j, Y') }}</time></td><td class="px-6 py-4">{{ $payment['type'] }}</td><td class="px-6 py-4 text-right whitespace-nowrap tabular-nums"><x-money :cents="$payment['amount_in_cents']" /></td></tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap"><time datetime="{{ $payment['date'] }}">{{ \Illuminate\Support\Carbon::parse($payment['date'])->format('M j, Y') }}</time></td>
+                            <td class="px-6 py-4">{{ $payment['type'] }}</td>
+                            <td class="px-6 py-4 text-right whitespace-nowrap tabular-nums"><x-money :cents="$payment['amount_in_cents']" /></td>
+                            <td class="max-w-64 px-6 py-4">
+                                @if ($payment['receipt_url'] !== null)
+                                    <a href="{{ $payment['receipt_url'] }}" class="inline-flex min-h-11 items-center rounded-lg text-indigo-700 underline underline-offset-4 [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-indigo-300">Download {{ $payment['receipt_name'] }}</a>
+                                @else
+                                    <span class="text-slate-500 dark:text-slate-400">No receipt</span>
+                                @endif
+                            </td>
+                        </tr>
                     @endforeach
                 </tbody>
             </table>
