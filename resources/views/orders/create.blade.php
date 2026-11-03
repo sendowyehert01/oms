@@ -25,7 +25,7 @@
             <h2 id="order-heading" class="mb-5 text-lg font-semibold">Order information</h2>
             <div class="grid gap-4 sm:grid-cols-3">
                 <x-form-input name="order_date" label="Order date" type="date" :value="$orderInput['order_date'] ?? now()->toDateString()" />
-                <x-form-input name="due_date" label="Due date" type="date" :value="$orderInput['due_date'] ?? ''" />
+                <x-form-input name="terms_of_payment" label="Terms of Payment" :value="$orderInput['terms_of_payment'] ?? ''" maxlength="255" placeholder="e.g. Cash on delivery or Net 30" />
                 <div>
                     <label for="status" class="mb-2 block text-sm font-medium">Order status <span aria-hidden="true" class="text-rose-600">*</span></label>
                     <select id="status" name="status" required class="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:outline-2 focus:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950" @if ($errors->has('status')) aria-invalid="true" aria-describedby="status-error" @endif>

@@ -49,7 +49,7 @@ function itemSpecificationData(array $overrides = []): array
  */
 function itemSpecificationOrderData(string $key, array $items): array
 {
-    return ['submission_key' => $key, 'order_date' => '2026-11-02', 'due_date' => '2026-11-10', 'status' => 'Pending', 'items' => $items];
+    return ['submission_key' => $key, 'order_date' => '2026-11-02', 'terms_of_payment' => 'Net 30', 'status' => 'Pending', 'items' => $items];
 }
 
 test('the item form contains packaging inputs and the exact sealing and puncher choices', function (): void {

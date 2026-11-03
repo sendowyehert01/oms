@@ -22,7 +22,8 @@ class OrderFactory extends Factory
         return [
             'customer_id' => Customer::factory(),
             'order_date' => now()->toDateString(),
-            'due_date' => now()->addWeek()->toDateString(),
+            'due_date' => null,
+            'terms_of_payment' => 'Cash on delivery',
             'status' => 'Pending',
             'submission_key' => (string) Str::uuid(),
         ];

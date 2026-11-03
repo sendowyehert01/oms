@@ -20,7 +20,7 @@ class StoreOrderRequest extends FormRequest
         $draft = $drafts->find($this->session(), $submissionKey);
 
         if ($draft !== null && $draft['customer_type'] !== null) {
-            $drafts->rememberOrder($this->session(), $submissionKey, $this->only(['order_date', 'due_date', 'status', 'items']));
+            $drafts->rememberOrder($this->session(), $submissionKey, $this->only(['order_date', 'terms_of_payment', 'status', 'items']));
             $this->merge(['customer_id' => null, ...$draft['customer']]);
         } elseif (is_string($submissionKey) && Str::isUuid($submissionKey) && $this->missing('customer_id') && $this->missing('customer_name')) {
             $customerId = Order::query()->where('submission_key', $submissionKey)->value('customer_id');
@@ -63,7 +63,7 @@ class StoreOrderRequest extends FormRequest
             'address' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:2000'],
             'contact_number' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:30'],
             'order_date' => ['required', 'date_format:Y-m-d'],
-            'due_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:order_date'],
+            'terms_of_payment' => ['required', 'string', 'max:255'],
             'status' => ['required', Rule::in(OrderEntries::STATUSES)],
             'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*' => ['required', 'array:product_name,quantity,unit_price,material_color,size,print_design_colors,sealing,sealing_other,puncher,puncher_other,customization_notes'],

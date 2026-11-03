@@ -19,8 +19,9 @@
                 <div><dt class="text-sm text-slate-500 dark:text-slate-400">Order number</dt><dd class="mt-1 font-semibold [overflow-wrap:anywhere]">{{ $order['number'] }}</dd></div>
                 <div><dt class="text-sm text-slate-500 dark:text-slate-400">Order ID</dt><dd class="mt-1 font-medium">{{ $order['id'] }}</dd></div>
                 <div><dt class="text-sm text-slate-500 dark:text-slate-400">Order date</dt><dd class="mt-1 font-medium"><time datetime="{{ $order['order_date'] }}">{{ \Illuminate\Support\Carbon::parse($order['order_date'])->format('M j, Y') }}</time></dd></div>
-                @if (! empty($order['due_date']))
-                    <div><dt class="text-sm text-slate-500 dark:text-slate-400">Due date</dt><dd class="mt-1 font-medium"><time datetime="{{ $order['due_date'] }}">{{ \Illuminate\Support\Carbon::parse($order['due_date'])->format('M j, Y') }}</time></dd></div>
+                <div><dt class="text-sm text-slate-500 dark:text-slate-400">Terms of Payment</dt><dd class="mt-1 font-medium [overflow-wrap:anywhere]">{{ $order['terms_of_payment'] ?? 'Not specified' }}</dd></div>
+                @if (empty($order['terms_of_payment']) && ! empty($order['due_date']))
+                    <div><dt class="text-sm text-slate-500 dark:text-slate-400">Legacy due date</dt><dd class="mt-1 font-medium"><time datetime="{{ $order['due_date'] }}">{{ \Illuminate\Support\Carbon::parse($order['due_date'])->format('M j, Y') }}</time></dd></div>
                 @endif
                 <div><dt class="text-sm text-slate-500 dark:text-slate-400">Order status</dt><dd class="mt-2"><x-order-status :status="$order['status']" /></dd></div>
             </dl>
