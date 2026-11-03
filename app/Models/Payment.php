@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['order_id', 'payment_date', 'amount', 'payment_type'])]
+#[Fillable(['order_id', 'payment_date', 'amount', 'payment_type', 'submission_key'])]
 class Payment extends Model
 {
+    public const array TYPES = ['down_payment' => 'Downpayment', 'full_payment' => 'Fully Paid'];
+
     /** @use HasFactory<PaymentFactory> */
     use HasFactory;
 

@@ -12,6 +12,10 @@
         <p class="mb-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200">Sample order. Item details are illustrative.</p>
     @endif
 
+    @if (session('success'))
+        <p role="status" class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{{ session('success') }}</p>
+    @endif
+
     <div class="grid gap-6 lg:grid-cols-2">
         <section aria-labelledby="order-heading" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
             <h2 id="order-heading" class="mb-5 text-lg font-semibold">Order information</h2>
@@ -90,4 +94,7 @@
             <p class="text-2xl font-semibold tabular-nums"><x-money :cents="$order['total_amount_in_cents']" /></p>
         </div>
     </section>
+    @if ($paymentSummary !== null)
+        <x-payment-summary :summary="$paymentSummary" :record-url="route('orders.payments.create', ['order' => $order['id']])" />
+    @endif
 </x-app-layout>

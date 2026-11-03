@@ -119,7 +119,7 @@ if (form) {
     window.addEventListener('pageshow', () => {
         isSubmitting = false;
         submitButton.disabled = false;
-        submitButton.textContent = 'Create Order';
+        submitButton.textContent = 'Save order and continue to payment';
         form.removeAttribute('aria-busy');
         items.querySelectorAll('[data-order-item]').forEach(updateChoiceInputs);
         items.querySelectorAll('[data-order-item]').forEach(updateMeasurementInput);

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\Schema;
@@ -74,7 +75,7 @@ test('different item specifications save independently and appear under the corr
         'puncher' => 'Others', 'puncher_other' => 'Oval handle', 'customization_notes' => 'Handle with care.', 'quantity' => 3,
     ]);
     $this->post(route('orders.store'), itemSpecificationOrderData($key, [2 => $first, 7 => $second]))
-        ->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+        ->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $this->assertDatabaseCount('order_items', 2);
     $this->assertDatabaseHas('order_items', array_replace($first, ['quantity' => '2 pcs', 'unit' => 'pcs']));
     $this->assertDatabaseHas('order_items', array_replace($second, ['quantity' => '3 pcs', 'unit' => 'pcs']));
@@ -88,7 +89,7 @@ test('different item specifications save independently and appear under the corr
 test('orders can still be created without optional item specifications', function (): void {
     $key = startItemSpecificationOrder($this);
     $this->post(route('orders.store'), itemSpecificationOrderData($key, [['product_name' => 'Basic bags', 'quantity' => 1, 'unit_price' => '2.00']]))
-        ->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+        ->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $item = OrderItem::query()->firstOrFail();
     foreach (['material_color', 'size', 'print_design_colors', 'sealing', 'sealing_other', 'puncher', 'puncher_other', 'customization_notes'] as $field) {
         expect($item->getAttribute($field))->toBeNull();
@@ -99,14 +100,14 @@ test('orders can still be created without optional item specifications', functio
 test('every sealing choice can be saved', function (string $choice): void {
     $key = startItemSpecificationOrder($this);
     $data = itemSpecificationData(['sealing' => $choice, 'sealing_other' => $choice === 'Others' ? 'Custom seal' : null]);
-    $this->post(route('orders.store'), itemSpecificationOrderData($key, [$data]))->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+    $this->post(route('orders.store'), itemSpecificationOrderData($key, [$data]))->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $this->assertDatabaseHas('order_items', ['sealing' => $choice, 'sealing_other' => $choice === 'Others' ? 'Custom seal' : null]);
 })->with(OrderItem::SEALING_OPTIONS);
 
 test('every puncher choice can be saved', function (string $choice): void {
     $key = startItemSpecificationOrder($this);
     $data = itemSpecificationData(['puncher' => $choice, 'puncher_other' => $choice === 'Others' ? 'Custom punch' : null]);
-    $this->post(route('orders.store'), itemSpecificationOrderData($key, [$data]))->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+    $this->post(route('orders.store'), itemSpecificationOrderData($key, [$data]))->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $this->assertDatabaseHas('order_items', ['puncher' => $choice, 'puncher_other' => $choice === 'Others' ? 'Custom punch' : null]);
 })->with(OrderItem::PUNCHER_OPTIONS);
 
@@ -126,7 +127,7 @@ test('stale custom text is excluded when choosing a predefined option', function
     $key = startItemSpecificationOrder($this);
     $this->post(route('orders.store'), itemSpecificationOrderData($key, [itemSpecificationData([
         'sealing_other' => ['invalid stale input'], 'puncher_other' => 'Old puncher',
-    ])]))->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+    ])]))->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $this->assertDatabaseHas('order_items', ['sealing' => 'Bottom Seal', 'sealing_other' => null, 'puncher' => 'None', 'puncher_other' => null]);
 });
 
@@ -179,7 +180,7 @@ test('specification text is escaped in the form and the saved details view', fun
     $this->post(route('orders.store'), $data)->assertSessionHasErrors('items.0.quantity');
     $this->get(route('orders.creation.details', ['draft' => $key]))->assertOk()->assertSee($text)->assertDontSee($text, false);
     $data['items'][0]['quantity'] = 1;
-    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.index');
+    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
     $this->get(route('orders.show', ['order' => OrderItem::query()->value('order_id')]))->assertOk()->assertSee($text)->assertDontSee($text, false);
 });
 

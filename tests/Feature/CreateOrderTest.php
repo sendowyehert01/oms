@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\Order;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
@@ -80,12 +81,12 @@ test('the orders list starts customer choice before showing the order form and c
     $this->assertDatabaseCount('orders', 0);
 });
 
-test('creating an order saves its customer and items and redirects to the updated list with a success message', function (): void {
+test('creating an order saves its customer and items and continues to payment with a success message', function (): void {
     $data = validCreateOrderData(['total_amount_in_cents' => 1, 'number' => 'FORGED']);
 
     $response = $this->post(route('orders.store'), $data);
 
-    $response->assertRedirectToRoute('orders.index')
+    $response->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Order ORD-2026-0001 created successfully.');
     $this->assertDatabaseCount('customers', 1);
@@ -102,6 +103,9 @@ test('creating an order saves its customer and items and redirects to the update
 
     $this->get($response->headers->get('Location'))->assertOk()
         ->assertSee('created successfully.')
+        ->assertSee('Record payment')->assertSee('29.20');
+
+    $this->get(route('orders.index'))->assertOk()
         ->assertSee('Saved orders')
         ->assertSeeInOrder(['ORD-2026-0001', 'Acme Packaging', 'Oct 31, 2026', 'Pending', '29.20'])
         ->assertDontSee('FORGED')
@@ -109,7 +113,7 @@ test('creating an order saves its customer and items and redirects to the update
 });
 
 test('an existing customer can receive another order without creating or changing their customer record', function (): void {
-    $this->post(route('orders.store'), validCreateOrderData())->assertRedirectToRoute('orders.index');
+    $this->post(route('orders.store'), validCreateOrderData())->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
     $customerId = Customer::query()->value('id');
 
     $response = $this->post(route('orders.store'), validCreateOrderData([
@@ -120,7 +124,7 @@ test('an existing customer can receive another order without creating or changin
         'contact_number' => null,
     ]));
 
-    $response->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+    $response->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $this->assertDatabaseCount('customers', 1);
     $this->assertDatabaseCount('orders', 2);
     $this->assertDatabaseHas('customers', ['id' => $customerId, 'company_name' => 'Acme Packaging', 'contact_person' => 'Alex Cruz']);
@@ -132,11 +136,11 @@ test('an existing customer can receive another order without creating or changin
 
 test('resubmitting the same creation request creates only one customer order and set of items', function (): void {
     $data = validCreateOrderData();
-    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.index');
+    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
 
     $response = $this->post(route('orders.store'), $data);
 
-    $response->assertRedirectToRoute('orders.index')
+    $response->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Order ORD-2026-0001 created successfully.');
     $this->assertDatabaseCount('customers', 1);
@@ -221,7 +225,7 @@ test('zero prices and decimal cents produce an exact server calculated total', f
         ],
     ]));
 
-    $response->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+    $response->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $this->assertDatabaseCount('order_items', 3);
     $this->get(route('orders.index'))->assertOk()->assertSee('0.70');
 });
@@ -229,7 +233,7 @@ test('zero prices and decimal cents produce an exact server calculated total', f
 test('saved orders have unique numbers and remain searchable and paginated with newest orders first', function (): void {
     for ($orderIndex = 0; $orderIndex < 12; $orderIndex++) {
         $this->post(route('orders.store'), validCreateOrderData(['customer_name' => 'Test Packaging']))
-            ->assertRedirectToRoute('orders.index');
+            ->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
     }
 
     $this->get(route('orders.index'))->assertOk()
@@ -249,7 +253,7 @@ test('customer names and retained item names are escaped in the list and form', 
     $customerName = '<script>alert("customer")</script>';
     $itemName = '<script>alert("item")</script>';
     $this->post(route('orders.store'), validCreateOrderData(['customer_name' => $customerName]))
-        ->assertRedirectToRoute('orders.index');
+        ->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
     $this->get(route('orders.index'))->assertOk()->assertSee($customerName)->assertDontSee($customerName, false);
 
     $data = validCreateOrderData();

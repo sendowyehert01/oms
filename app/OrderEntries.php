@@ -178,13 +178,11 @@ class OrderEntries
 
     private function priceInCents(string $price): int
     {
-        [$whole, $fraction] = array_pad(explode('.', $price, 2), 2, '0');
-
-        return (int) $whole * 100 + (int) str_pad($fraction, 2, '0');
+        return MoneyAmount::inCents($price);
     }
 
     private function itemSubtotalInCents(OrderItem $item): int
     {
-        return $item->measurement()->subtotalInCents($this->priceInCents((string) $item->unit_price));
+        return $item->subtotalInCents();
     }
 }

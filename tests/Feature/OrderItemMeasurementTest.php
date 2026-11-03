@@ -56,7 +56,7 @@ test('piece and weight measurements save independently as normalized text with a
         2 => [...measurementItemData(100000, 'pcs', '1.25'), 'product_name' => 'Piece bags'],
         7 => [...measurementItemData('2.50', 'kgs', '1.50'), 'product_name' => 'Weight bags'],
     ]);
-    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $this->assertDatabaseHas('order_items', ['product_name' => 'Piece bags', 'quantity' => '100000 pcs', 'unit' => 'pcs']);
     $this->assertDatabaseHas('order_items', ['product_name' => 'Weight bags', 'quantity' => '2.5 kgs', 'unit' => 'kgs']);
     $order = Order::query()->firstOrFail();
@@ -64,7 +64,7 @@ test('piece and weight measurements save independently as normalized text with a
         ->assertSeeInOrder(['Piece bags', '100,000 pcs', 'Weight bags', '2.5 kgs'])->assertSee('125,003.75');
     expect($details['order']['total_amount_in_cents'])->toBe(12_500_375);
     $this->get(route('orders.index'))->assertOk()->assertSee('125,003.75');
-    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.index');
+    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
     $this->assertDatabaseCount('orders', 1);
     $this->assertDatabaseCount('order_items', 2);
 });
@@ -72,7 +72,7 @@ test('piece and weight measurements save independently as normalized text with a
 test('weight subtotals round half up to a cent and preserve exact supported values', function (mixed $amount, string $price, string $stored, int $cents, string $formatted): void {
     $key = startMeasurementOrder($this);
     $this->post(route('orders.store'), measurementOrderData($key, [measurementItemData($amount, 'kgs', $price)]))
-        ->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+        ->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $item = OrderItem::query()->firstOrFail();
     expect($item->quantity)->toBe($stored);
     $details = $this->get(route('orders.show', ['order' => $item->order_id]))->assertOk()->assertSee($formatted);
@@ -90,7 +90,7 @@ test('weight subtotals round half up to a cent and preserve exact supported valu
 test('order totals sum the rounded item subtotals', function (): void {
     $key = startMeasurementOrder($this);
     $this->post(route('orders.store'), measurementOrderData($key, [measurementItemData('0.01', 'kgs', '0.50'), measurementItemData('0.01', 'kgs', '0.50')]))
-        ->assertRedirectToRoute('orders.index');
+        ->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
     $details = $this->get(route('orders.show', ['order' => Order::query()->value('id')]))->assertOk();
     expect($details['order']['total_amount_in_cents'])->toBe(2);
     expect(array_column($details['order']['items'], 'subtotal_in_cents'))->toBe([1, 1]);
@@ -147,7 +147,7 @@ test('older requests without a unit default to pcs', function (): void {
     $key = startMeasurementOrder($this);
     $item = measurementItemData(100000, 'pcs');
     unset($item['unit']);
-    $this->post(route('orders.store'), measurementOrderData($key, [$item]))->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+    $this->post(route('orders.store'), measurementOrderData($key, [$item]))->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $this->assertDatabaseHas('order_items', ['quantity' => '100000 pcs', 'unit' => 'pcs']);
 });
 
