@@ -129,7 +129,7 @@ class OrderCreationController extends Controller
             return to_route('orders.create', ['draft' => $submissionKey]);
         }
 
-        $drafts->rememberOrder($request->session(), $submissionKey, $request->only(['order_date', 'due_date', 'status', 'items']));
+        $drafts->rememberOrder($request->session(), $submissionKey, $request->only(['order_date', 'terms_of_payment', 'status', 'items']));
 
         return to_route('orders.creation.customer', ['type' => $draft['customer_type'] ?? 'new', 'draft' => $submissionKey]);
     }

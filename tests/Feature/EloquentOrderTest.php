@@ -98,7 +98,7 @@ test('creating an order dispatches model events for its customer order and items
         'address' => '123 Market Street',
         'contact_number' => '09123456789',
         'order_date' => '2026-10-31',
-        'due_date' => '2026-11-07',
+        'terms_of_payment' => 'Net 30',
         'status' => 'Pending',
         'items' => [
             ['product_name' => 'Plastic bags', 'quantity' => 2, 'unit_price' => '9.95'],

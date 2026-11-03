@@ -28,7 +28,7 @@ function validCreateOrderData(array $overrides = []): array
         'address' => '123 Market Street',
         'contact_number' => '09123456789',
         'order_date' => '2026-10-31',
-        'due_date' => '2026-11-07',
+        'terms_of_payment' => 'Net 30',
         'status' => 'Pending',
         'items' => [
             ['product_name' => 'Plastic bags', 'quantity' => 2, 'unit_price' => '9.95'],
@@ -66,7 +66,8 @@ test('the orders list starts customer choice before showing the order form and c
         ->assertSee('Customer name')
         ->assertSee('Contact person')
         ->assertSee('Order date')
-        ->assertSee('Due date')
+        ->assertSee('Terms of Payment')
+        ->assertDontSee('name="due_date"', false)
         ->assertSee('Unit price (PHP)')
         ->assertSee('Subtotal (PHP)')
         ->assertSee('Total amount (PHP)')
@@ -94,7 +95,7 @@ test('creating an order saves its customer and items and redirects to the update
         'address' => '123 Market Street',
         'contact_number' => '09123456789',
     ]);
-    $this->assertDatabaseHas('orders', ['id' => 1, 'customer_id' => 1, 'order_date' => '2026-10-31', 'due_date' => '2026-11-07', 'status' => 'Pending']);
+    $this->assertDatabaseHas('orders', ['id' => 1, 'customer_id' => 1, 'order_date' => '2026-10-31', 'terms_of_payment' => 'Net 30', 'due_date' => null, 'status' => 'Pending']);
     $this->assertDatabaseCount('order_items', 2);
     $this->assertDatabaseHas('order_items', ['order_id' => 1, 'product_name' => 'Plastic bags', 'quantity' => 2, 'unit_price' => '9.95']);
     $this->assertDatabaseHas('order_items', ['order_id' => 1, 'product_name' => 'Zip bags', 'quantity' => 3, 'unit_price' => '3.10']);
@@ -147,7 +148,7 @@ test('missing mandatory order fields show errors without saving any records', fu
     $response = $this->from(route('orders.create'))->post(route('orders.store'), []);
 
     $response->assertRedirectToRoute('orders.create')
-        ->assertSessionHasErrors(['submission_key', 'customer_name', 'contact_person', 'address', 'contact_number', 'order_date', 'due_date', 'status', 'items']);
+        ->assertSessionHasErrors(['submission_key', 'customer_name', 'contact_person', 'address', 'contact_number', 'order_date', 'terms_of_payment', 'status', 'items']);
     $this->assertDatabaseCount('customers', 0);
     $this->assertDatabaseCount('orders', 0);
     $this->assertDatabaseCount('order_items', 0);
@@ -178,7 +179,7 @@ test('invalid order input returns its validation message and leaves no saved rec
     'exponential price' => ['items.0.unit_price', '1e2', 'Enter a unit price with no more than two decimal places.'],
     'excessive price' => ['items.0.unit_price', '1000000.00', 'The unit price field must not be greater than 999999.99.'],
     'invalid date' => ['order_date', '2026-02-30', 'The order date field must match the format Y-m-d.'],
-    'due date before order' => ['due_date', '2026-10-30', 'The due date field must be a date after or equal to order date.'],
+    'missing payment terms' => ['terms_of_payment', '', 'The terms of payment field is required.'],
     'unsupported status' => ['status', 'Paid', 'The selected status is invalid.'],
     'unknown customer' => ['customer_id', 999, 'The selected customer id is invalid.'],
     'invalid submission key' => ['submission_key', 'invalid', 'The submission key field must be a valid UUID.'],

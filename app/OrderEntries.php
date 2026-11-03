@@ -39,7 +39,7 @@ class OrderEntries
     }
 
     /**
-     * @return array{id: int, number: string, customer_name: string, order_date: string, due_date: string, status: string, total_amount_in_cents: int, customer: array{id: int, name: string, contact_person: string, address: string, contact_number: string}, items: array<int, array{product_name: string, size: ?string, customization_notes: ?string, material_color: ?string, print_design_colors: ?string, sealing: ?string, sealing_other: ?string, puncher: ?string, puncher_other: ?string, quantity: int, unit_price_in_cents: int, subtotal_in_cents: int}>}|null
+     * @return array{id: int, number: string, customer_name: string, order_date: string, terms_of_payment: ?string, due_date: ?string, status: string, total_amount_in_cents: int, customer: array{id: int, name: string, contact_person: string, address: string, contact_number: string}, items: array<int, array{product_name: string, size: ?string, customization_notes: ?string, material_color: ?string, print_design_colors: ?string, sealing: ?string, sealing_other: ?string, puncher: ?string, puncher_other: ?string, quantity: int, unit_price_in_cents: int, subtotal_in_cents: int}>}|null
      */
     public function find(int $orderId): ?array
     {
@@ -73,7 +73,8 @@ class OrderEntries
             'number' => $this->number($order->id, $order->order_date->toDateString()),
             'customer_name' => $order->customer->company_name,
             'order_date' => $order->order_date->toDateString(),
-            'due_date' => $order->due_date->toDateString(),
+            'terms_of_payment' => $order->terms_of_payment,
+            'due_date' => $order->due_date?->toDateString(),
             'status' => $order->status,
             'total_amount_in_cents' => $items->sum('subtotal_in_cents'),
             'customer' => [
@@ -115,7 +116,7 @@ class OrderEntries
     }
 
     /**
-     * @param  array{submission_key: string, customer_id?: int|string|null, customer_name?: string, contact_person?: string, address?: string, contact_number?: string, order_date: string, due_date: string, status: string, items: array<int, array{product_name: string, material_color?: ?string, size?: ?string, print_design_colors?: ?string, sealing?: ?string, sealing_other?: ?string, puncher?: ?string, puncher_other?: ?string, customization_notes?: ?string, quantity: int|string, unit_price: int|float|string}>}  $data
+     * @param  array{submission_key: string, customer_id?: int|string|null, customer_name?: string, contact_person?: string, address?: string, contact_number?: string, order_date: string, terms_of_payment: string, status: string, items: array<int, array{product_name: string, material_color?: ?string, size?: ?string, print_design_colors?: ?string, sealing?: ?string, sealing_other?: ?string, puncher?: ?string, puncher_other?: ?string, customization_notes?: ?string, quantity: int|string, unit_price: int|float|string}>}  $data
      */
     public function create(array $data): int
     {
@@ -136,7 +137,7 @@ class OrderEntries
 
                 $order = $customer->orders()->create([
                     'order_date' => $data['order_date'],
-                    'due_date' => $data['due_date'],
+                    'terms_of_payment' => $data['terms_of_payment'],
                     'status' => $data['status'],
                     'submission_key' => $data['submission_key'],
                 ]);

@@ -31,7 +31,7 @@ function createDeleteOrderFixture(?int $customerId = null, ?int $orderId = null,
         'id' => $orderId,
         'customer_id' => $customerId,
         'order_date' => '2026-10-31',
-        'due_date' => '2026-11-07',
+        'terms_of_payment' => 'Net 30',
         'status' => 'Pending',
     ], fn (int|string|null $value): bool => $value !== null));
 

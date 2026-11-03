@@ -30,7 +30,7 @@ function createViewOrderFixture(array $customerAttributes = [], array $orderAttr
 
     $order = Order::factory()->for($customer)->create(array_replace([
         'order_date' => '2026-10-31',
-        'due_date' => '2026-11-07',
+        'terms_of_payment' => 'Net 30',
         'status' => 'In production',
     ], $orderAttributes));
 
@@ -80,7 +80,8 @@ test('details display the selected order customer and all its item prices subtot
         ->assertSee('123 Market Street')
         ->assertSee('09123456789')
         ->assertSee('Oct 31, 2026')
-        ->assertSee('Nov 7, 2026')
+        ->assertSee('Terms of Payment')
+        ->assertSee('Net 30')
         ->assertSee('In production')
         ->assertSeeInOrder(['Plastic bags', '9.95', '19.90', 'Zip bags', '3.10', '9.30', 'Total amount (PHP)', '29.20'])
         ->assertDontSee('Other customer')

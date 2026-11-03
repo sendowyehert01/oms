@@ -37,7 +37,7 @@ function orderFlowDetailsData(string $submissionKey, array $overrides = []): arr
     return array_replace([
         'submission_key' => $submissionKey,
         'order_date' => '2026-11-02',
-        'due_date' => '2026-11-07',
+        'terms_of_payment' => 'Net 30',
         'status' => 'Pending',
         'items' => [
             ['product_name' => 'Plastic bags', 'quantity' => 2, 'unit_price' => '9.95'],
@@ -172,7 +172,7 @@ test('incomplete customer input survives going back to choice and returning', fu
 test('back navigation retains unfinished order items while allowing customer details to change', function (): void {
     $key = startCustomerOrderFlow($this);
     $this->post(route('orders.creation.select-customer'), ['submission_key' => $key, 'customer_type' => 'new', ...orderFlowCustomerData()]);
-    $input = orderFlowDetailsData($key, ['due_date' => '', 'items' => [['product_name' => 'Unfinished Item', 'quantity' => 0, 'unit_price' => '1.20']]]);
+    $input = orderFlowDetailsData($key, ['terms_of_payment' => '', 'items' => [['product_name' => 'Unfinished Item', 'quantity' => 0, 'unit_price' => '1.20']]]);
     $this->post(route('orders.creation.back'), $input)->assertRedirectToRoute('orders.creation.customer', ['type' => 'new', 'draft' => $key]);
     $this->get(route('orders.creation.customer', ['type' => 'new', 'draft' => $key]))->assertOk()->assertSee('value="Acme Packaging"', false);
     $this->post(route('orders.creation.select-customer'), ['submission_key' => $key, 'customer_type' => 'new', ...orderFlowCustomerData(), 'customer_name' => 'Updated Customer']);
