@@ -24,7 +24,7 @@
     <x-payment-summary :summary="$summary" />
 
     @if ($summary['balance_in_cents'] > 0)
-        <form method="POST" action="{{ route('orders.payments.store', ['order' => $order]) }}" data-record-payment data-payment-balance="{{ \App\MoneyAmount::decimal($summary['balance_in_cents']) }}" class="mt-6 space-y-6">
+        <form method="POST" enctype="multipart/form-data" action="{{ route('orders.payments.store', ['order' => $order]) }}" data-record-payment data-payment-balance="{{ \App\MoneyAmount::decimal($summary['balance_in_cents']) }}" class="mt-6 space-y-6">
             @csrf
             <input type="hidden" name="submission_key" value="{{ $submissionKey }}">
             <section aria-labelledby="payment-heading" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
@@ -43,6 +43,14 @@
                     </div>
                 </div>
                 <p class="mt-4 text-sm text-slate-500 dark:text-slate-400">Downpayment leaves a balance. Fully Paid settles the exact remaining balance.</p>
+                @if ($receiptUploadsAvailable)
+                    <div class="mt-6">
+                        <x-form-input name="receipt" label="Receipt or payment screenshot" type="file" :required="false" accept="image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf" aria-describedby="receipt-help" />
+                        <p id="receipt-help" class="mt-2 text-sm text-slate-500 dark:text-slate-400">Optional. JPG, PNG, or PDF, up to 5 MB. After a failed submission, select the file again.</p>
+                    </div>
+                @else
+                    <p class="mt-6 text-sm text-slate-500 dark:text-slate-400">Receipt uploads are currently unavailable. You can still record a payment without a receipt.</p>
+                @endif
             </section>
             <div class="flex flex-wrap justify-end gap-3">
                 <a href="{{ route('orders.show', ['order' => $order]) }}" class="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-5 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:border-slate-700 dark:hover:bg-slate-800">Back to order</a>
