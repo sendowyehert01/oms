@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\Order;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
@@ -70,7 +71,7 @@ test('a new customer completes customer information before order entry and both 
     $this->get(route('orders.creation.details', ['draft' => $key]))->assertOk()->assertSee('Acme Packaging')
         ->assertSee('Alex Cruz')->assertSee('Order date')->assertSee('Back to customer step')
         ->assertDontSee('name="customer_name"', false)->assertDontSee('name="customer_id"', false);
-    $this->post(route('orders.store'), orderFlowDetailsData($key))->assertRedirectToRoute('orders.index')
+    $this->post(route('orders.store'), orderFlowDetailsData($key))->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])
         ->assertSessionHas('success', 'Order ORD-2026-0001 created successfully.');
     $this->assertDatabaseCount('customers', 1);
     $this->assertDatabaseHas('customers', ['company_name' => 'Acme Packaging', 'contact_person' => 'Alex Cruz']);
@@ -89,7 +90,7 @@ test('an existing customer is reused and posted customer changes cannot replace 
     $this->get(route('orders.creation.details', ['draft' => $key]))->assertOk()->assertSee('Existing Packaging');
 
     $this->post(route('orders.store'), orderFlowDetailsData($key, ['customer_id' => $otherCustomer->id, ...orderFlowCustomerData()]))
-        ->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+        ->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $this->assertDatabaseCount('customers', 2);
     $this->assertDatabaseHas('orders', ['customer_id' => $customer->id]);
     expect($customer->refresh()->getAttributes())->toBe($original);
@@ -100,7 +101,7 @@ test('new customer details cannot be replaced by a forged ID at order submission
     $key = startCustomerOrderFlow($this);
     $this->post(route('orders.creation.select-customer'), ['submission_key' => $key, 'customer_type' => 'new', ...orderFlowCustomerData()]);
     $this->post(route('orders.store'), orderFlowDetailsData($key, ['customer_id' => $existing->id, 'customer_name' => 'Forged']))
-        ->assertRedirectToRoute('orders.index');
+        ->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
     $customer = Customer::query()->where('company_name', 'Acme Packaging')->firstOrFail();
     $this->assertDatabaseCount('customers', 2);
     $this->assertDatabaseHas('orders', ['customer_id' => $customer->id]);
@@ -243,8 +244,8 @@ test('repeating a completed submission returns its success without duplicating r
     $key = startCustomerOrderFlow($this);
     $this->post(route('orders.creation.select-customer'), ['submission_key' => $key, 'customer_type' => 'new', ...orderFlowCustomerData()]);
     $data = orderFlowDetailsData($key);
-    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.index');
-    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
+    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $this->assertDatabaseCount('customers', 1);
     $this->assertDatabaseCount('orders', 1);
     $this->assertDatabaseCount('order_items', 2);
@@ -269,7 +270,7 @@ test('a failed save rolls back its records retains the draft and can be retried'
     $this->assertDatabaseCount('order_items', 0);
     Exceptions::assertReported(RuntimeException::class);
     $shouldFail = false;
-    $this->post(route('orders.store'), orderFlowDetailsData($key))->assertRedirectToRoute('orders.index');
+    $this->post(route('orders.store'), orderFlowDetailsData($key))->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
     $this->assertDatabaseCount('customers', 1);
     $this->assertDatabaseCount('orders', 1);
 });

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderCreationController;
+use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'hello')->name('home');
@@ -14,6 +15,8 @@ Route::get('/orders/create/details', [OrderCreationController::class, 'details']
 Route::post('/orders/create/back', [OrderCreationController::class, 'back'])->name('orders.creation.back');
 Route::post('/orders/create/cancel', [OrderCreationController::class, 'cancel'])->name('orders.creation.cancel');
 Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+Route::get('/orders/{order}/payments/create', [PaymentController::class, 'create'])->whereNumber('order')->name('orders.payments.create');
+Route::post('/orders/{order}/payments', [PaymentController::class, 'store'])->whereNumber('order')->name('orders.payments.store');
 Route::get('/orders/samples/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('orders.samples.show');
 Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('orders.show');
 Route::delete('/orders/samples/{order}', [OrderController::class, 'destroy'])->whereNumber('order')->name('orders.samples.destroy');

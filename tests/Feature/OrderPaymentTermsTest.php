@@ -48,7 +48,7 @@ test('free text payment terms save without a due date and appear in order detail
     $data = paymentTermsOrderData($key, $terms);
     $data['due_date'] = 'a stale value from an older form';
 
-    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $order = Order::query()->firstOrFail();
     expect($order->terms_of_payment)->toBe($terms);
     expect($order->due_date)->toBeNull();
@@ -99,7 +99,7 @@ test('payment terms are trimmed and escaped in retained input and order details'
     $this->get(route('orders.creation.details', ['draft' => $key]))->assertOk()->assertSee($terms)->assertDontSee($terms, false);
 
     $data['items'][0]['quantity'] = 1;
-    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.index');
+    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
     $order = Order::query()->firstOrFail();
     expect($order->terms_of_payment)->toBe($terms);
     $this->get(route('orders.show', ['order' => $order->id]))->assertOk()->assertSee($terms)->assertDontSee($terms, false);

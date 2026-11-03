@@ -6,6 +6,7 @@ use App\Http\Requests\StoreOrderRequest;
 use App\Models\Order;
 use App\OrderDrafts;
 use App\OrderEntries;
+use App\PaymentEntries;
 use App\SampleOrders;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -74,10 +75,10 @@ class OrderController extends Controller
         $orderDate = Order::query()->findOrFail($orderId)->order_date->toDateString();
         $orderNumber = $orderEntries->number($orderId, $orderDate);
 
-        return to_route('orders.index')->with('success', 'Order '.$orderNumber.' created successfully.');
+        return to_route('orders.payments.create', ['order' => $orderId])->with('success', 'Order '.$orderNumber.' created successfully.');
     }
 
-    public function show(Request $request, string $order, OrderEntries $orderEntries, SampleOrders $sampleOrders): View|Response
+    public function show(Request $request, string $order, OrderEntries $orderEntries, SampleOrders $sampleOrders, PaymentEntries $paymentEntries): View|Response
     {
         $search = $request->query('search', '');
         $search = is_string($search) ? trim($search) : '';
@@ -89,6 +90,9 @@ class OrderController extends Controller
 
         try {
             $details = $orderId === false ? null : ($isSampleData ? $sampleOrders->find($orderId, $request->session()->get('orders.deleted_samples', [])) : $orderEntries->find($orderId));
+            $paymentSummary = $details !== null && ! $isSampleData
+                ? $paymentEntries->summary(Order::query()->findOrFail($orderId))
+                : null;
         } catch (QueryException $exception) {
             report($exception);
 
@@ -109,7 +113,7 @@ class OrderController extends Controller
             ], 404);
         }
 
-        return view('orders.show', ['order' => $details, 'isSampleData' => $isSampleData, 'returnToOrdersUrl' => $returnToOrdersUrl]);
+        return view('orders.show', ['order' => $details, 'isSampleData' => $isSampleData, 'returnToOrdersUrl' => $returnToOrdersUrl, 'paymentSummary' => $paymentSummary]);
     }
 
     public function destroy(Request $request, string $order, OrderEntries $orderEntries, SampleOrders $sampleOrders): JsonResponse|RedirectResponse

@@ -46,7 +46,7 @@ test('initial and template item rows show the 100 million limit', function (): v
 test('large quantities up to 100 million save and display exact cents', function (int $quantity, int $cents, string $amount): void {
     $key = startQuantityLimitOrder($this);
     $data = quantityLimitOrderData($key, [['product_name' => 'High volume bags', 'quantity' => $quantity, 'unit_price' => '999999.99']]);
-    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $item = OrderItem::query()->firstOrFail();
     expect($item->quantity)->toBe($quantity.' pcs');
     $details = $this->get(route('orders.show', ['order' => $item->order_id]))->assertOk()
@@ -56,7 +56,7 @@ test('large quantities up to 100 million save and display exact cents', function
     $list = $this->get(route('orders.index'))->assertOk()->assertSee($amount);
     expect($list['orders']->first()['total_amount_in_cents'])->toBe($cents);
 
-    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.index');
+    $this->post(route('orders.store'), $data)->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')]);
     $this->assertDatabaseCount('orders', 1);
     $this->assertDatabaseCount('order_items', 1);
 })->with([
@@ -80,7 +80,7 @@ test('an order with 100 high volume items retains exact total cents', function (
     $key = startQuantityLimitOrder($this);
     $items = array_fill(0, 100, ['product_name' => 'High volume bags', 'quantity' => 100000000, 'unit_price' => '999999.99']);
     $items[99]['quantity'] = $lastQuantity;
-    $this->post(route('orders.store'), quantityLimitOrderData($key, $items))->assertRedirectToRoute('orders.index')->assertSessionHasNoErrors();
+    $this->post(route('orders.store'), quantityLimitOrderData($key, $items))->assertRedirectToRoute('orders.payments.create', ['order' => Order::query()->latest('id')->value('id')])->assertSessionHasNoErrors();
     $this->assertDatabaseCount('order_items', 100);
     $details = $this->get(route('orders.show', ['order' => Order::query()->value('id')]))->assertOk()->assertSee($amount);
     expect($details['order']['total_amount_in_cents'])->toBe($totalCents);

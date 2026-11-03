@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\ItemMeasurement;
+use App\MoneyAmount;
 use Database\Factories\OrderItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,6 +33,11 @@ class OrderItem extends Model
     public function measurement(): ItemMeasurement
     {
         return ItemMeasurement::fromStored($this->quantity, $this->unit ?? 'pcs');
+    }
+
+    public function subtotalInCents(): int
+    {
+        return $this->measurement()->subtotalInCents(MoneyAmount::inCents($this->unit_price));
     }
 
     /** @return array<string, string> */
