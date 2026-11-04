@@ -72,6 +72,7 @@ class Order extends Model
             'customer_id' => 'integer',
             'created_by' => 'integer',
             'workflow_version' => 'integer',
+            'item_tracking_started_at' => 'datetime',
             'order_date' => 'date:Y-m-d',
             'due_date' => 'date:Y-m-d',
         ];

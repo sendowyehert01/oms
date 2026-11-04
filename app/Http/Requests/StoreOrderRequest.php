@@ -6,7 +6,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\OrderDrafts;
-use App\OrderEntries;
+use App\OrderStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\NestedRules;
@@ -65,7 +65,7 @@ class StoreOrderRequest extends FormRequest
             'contact_number' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:30'],
             'order_date' => ['required', 'date_format:Y-m-d'],
             'terms_of_payment' => ['required', 'string', 'max:255'],
-            'status' => ['required', Rule::in(OrderEntries::STATUSES)],
+            'status' => ['required', Rule::in([OrderStatus::Pending->value])],
             'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*' => ['required', 'array:product_name,quantity,unit,unit_price,material_color,size,print_design_colors,sealing,sealing_other,puncher,puncher_other,customization_notes'],
             'items.*.product_name' => ['required', 'string', 'max:255'],
