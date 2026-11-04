@@ -159,7 +159,7 @@ class OrderEntries
                 $order = $customer->orders()->make([
                     'order_date' => $data['order_date'],
                     'terms_of_payment' => $data['terms_of_payment'],
-                    'status' => $data['status'],
+                    'status' => OrderStatus::Pending->value,
                     'submission_key' => $data['submission_key'],
                 ]);
 
@@ -180,6 +180,15 @@ class OrderEntries
                     'unit' => $item['unit'] ?? 'pcs',
                     'unit_price' => $item['unit_price'],
                 ], $data['items']));
+
+                $order->statusHistory()->create([
+                    'actor_id' => $user->id,
+                    'actor_name' => $user->name,
+                    'event_type' => 'order_created',
+                    'from_status' => null,
+                    'to_status' => OrderStatus::Pending->value,
+                    'submission_key' => $data['submission_key'],
+                ]);
 
                 return $order->id;
             });
