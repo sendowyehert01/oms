@@ -1,6 +1,6 @@
 <?php
 
-test('the home page displays hello lord without application tables', function (): void {
+test('the home page offers dashboard and orders entry without application tables', function (): void {
     config([
         'session.driver' => 'file',
         'cache.default' => 'file',
@@ -9,5 +9,9 @@ test('the home page displays hello lord without application tables', function ()
     $response = $this->get('/');
 
     $response->assertOk()
-        ->assertSeeInOrder(['<body', 'Hello Lord', '</body>'], false);
+        ->assertSeeInOrder(['<body', 'Order Management System', 'Open dashboard', 'View orders', '</body>'], false)
+        ->assertSee('href="'.e(route('dashboard')).'"', false)
+        ->assertSee('href="'.e(route('orders.index')).'"', false)
+        ->assertDontSee('Hello Lord')
+        ->assertDontSee('<form', false);
 });
