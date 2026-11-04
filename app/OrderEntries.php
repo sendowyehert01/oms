@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Schema;
 
 class OrderEntries
 {
-    public const array STATUSES = ['Pending', 'In production', 'Ready for delivery', 'Completed'];
+    public const array STATUSES = [OrderStatus::Pending->value, OrderStatus::InProduction->value, OrderStatus::ReadyForDelivery->value, OrderStatus::Completed->value];
 
     /**
      * @return Collection<int, array{id: int, number: string, customer_name: string, order_date: string, status: string, total_amount_in_cents: int}>

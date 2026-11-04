@@ -41,6 +41,12 @@ class Order extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** @return HasMany<OrderStatusHistory, $this> */
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(OrderStatusHistory::class)->orderByDesc('id');
+    }
+
     /** @param Builder<Order> $query */
     #[Scope]
     protected function createdBy(Builder $query, User $user): void
@@ -65,6 +71,7 @@ class Order extends Model
         return [
             'customer_id' => 'integer',
             'created_by' => 'integer',
+            'workflow_version' => 'integer',
             'order_date' => 'date:Y-m-d',
             'due_date' => 'date:Y-m-d',
         ];
