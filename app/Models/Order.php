@@ -77,6 +77,7 @@ class Order extends Model
             'delivery_confirmed_by' => 'integer',
             'delivery_confirmed_at' => 'datetime',
             'order_date' => 'date:Y-m-d',
+            'payment_due_date' => 'date:Y-m-d',
             'due_date' => 'date:Y-m-d',
             'target_delivery_date' => 'date:Y-m-d',
             'stage_started_at' => 'datetime',

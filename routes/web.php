@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BalanceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderCreationController;
@@ -7,6 +8,7 @@ use App\Http\Controllers\OrderItemProductionController;
 use App\Http\Controllers\OrderScheduleController;
 use App\Http\Controllers\OrderStatusController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PaymentDueDateController;
 use App\Http\Controllers\PaymentReceiptController;
 use App\Http\Controllers\ProductionBoardController;
 use App\Http\Controllers\StaffController;
@@ -30,6 +32,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/orders/create/back', [OrderCreationController::class, 'back'])->name('orders.creation.back');
     Route::post('/orders/create/cancel', [OrderCreationController::class, 'cancel'])->name('orders.creation.cancel');
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+    Route::get('/balances', BalanceController::class)->name('balances.index');
+    Route::post('/orders/{order}/payment-due-date', PaymentDueDateController::class)->whereNumber('order')->name('orders.payment-due-date.update');
     Route::post('/orders/{order}/status', OrderStatusController::class)->whereNumber('order')->name('orders.status.update');
     Route::post('/orders/{order}/items/{item}/production', OrderItemProductionController::class)->scopeBindings()->whereNumber(['order', 'item'])->name('orders.items.production.update');
     Route::get('/orders/{order}/payments/create', [PaymentController::class, 'create'])->whereNumber('order')->name('orders.payments.create');

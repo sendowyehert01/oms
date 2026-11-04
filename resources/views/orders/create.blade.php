@@ -23,6 +23,9 @@
                 <x-form-input name="order_date" label="Order date" type="date" :value="$orderInput['order_date'] ?? now()->toDateString()" />
                 <x-form-input name="target_delivery_date" label="Target delivery date" type="date" :required="false" :value="$orderInput['target_delivery_date'] ?? ''" />
                 <x-form-input name="terms_of_payment" label="Terms of Payment" :value="$orderInput['terms_of_payment'] ?? ''" maxlength="255" placeholder="e.g. Cash on delivery or Net 30" />
+                @if (auth()->user()->isAdmin())
+                    <x-form-input name="payment_due_date" label="Payment due date" type="date" :required="false" :value="$orderInput['payment_due_date'] ?? ''" />
+                @endif
                 <div>
                     <p class="mb-2 text-sm font-medium">Initial order status</p>
                     <input type="hidden" name="status" value="Pending">
