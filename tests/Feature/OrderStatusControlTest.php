@@ -54,16 +54,12 @@ test('order service forces Pending and creation retries do not invent duplicate 
     $this->assertDatabaseCount('order_status_histories', 1);
 });
 
-test('admin can start production without payment and confirm all items are ready', function (): void {
+test('whole order actions cannot bypass per item availability and readiness checks', function (): void {
     $order = Order::factory()->hasItems(2)->create();
-    $this->postJson(route('orders.status.update', $order), statusChangeData($order, 'start_production'))->assertRedirect();
-    expect($order->fresh()->status)->toBe('In production');
-    $this->assertDatabaseCount('payments', 0);
-    $this->postJson(route('orders.status.update', $order), statusChangeData($order->fresh(), 'mark_ready'))->assertUnprocessable()->assertJsonValidationErrors('quality_checked');
-    $this->postJson(route('orders.status.update', $order), statusChangeData($order->fresh(), 'mark_ready', ['quality_checked' => true]))->assertRedirect();
-    expect($order->fresh()->status)->toBe('Ready for delivery');
-    expect($order->fresh()->workflow_version)->toBe(2);
-    $this->assertDatabaseCount('order_status_histories', 2);
+    $this->postJson(route('orders.status.update', $order), statusChangeData($order, 'start_production'))->assertUnprocessable()->assertJsonValidationErrors('action');
+    $this->postJson(route('orders.status.update', $order), statusChangeData($order, 'mark_ready', ['quality_checked' => true]))->assertUnprocessable()->assertJsonValidationErrors('action');
+    expect($order->fresh()->status)->toBe('Pending');
+    $this->assertDatabaseCount('order_status_histories', 0);
 });
 
 test('delivery completion and out of sequence actions cannot be forged', function (string $action): void {
@@ -94,8 +90,8 @@ test('reopening requires a reason and retains payments and historical status', f
 });
 
 test('exact retries are idempotent but stale forms and reused changed payloads are rejected', function (): void {
-    $order = Order::factory()->hasItems(1)->create();
-    $payload = statusChangeData($order, 'start_production');
+    $order = Order::factory()->hasItems(1)->create(['status' => 'In production']);
+    $payload = statusChangeData($order, 'reopen', ['notes' => 'Correct the order']);
     $this->postJson(route('orders.status.update', $order), $payload)->assertRedirect();
     $this->postJson(route('orders.status.update', $order), $payload)->assertRedirect();
     $this->postJson(route('orders.status.update', $order), statusChangeData($order, 'reopen', ['notes' => 'Stale']))->assertUnprocessable()->assertJsonValidationErrors('workflow_version');
@@ -105,15 +101,15 @@ test('exact retries are idempotent but stale forms and reused changed payloads a
 });
 
 test('status and history roll back together if saving the order fails', function (): void {
-    $order = Order::factory()->hasItems(1)->create();
+    $order = Order::factory()->hasItems(1)->create(['status' => 'In production']);
     Exceptions::fake();
     Order::updating(function (Order $saving) use ($order): void {
         if ($saving->id === $order->id) {
             throw new RuntimeException('Simulated persistence failure');
         }
     });
-    $this->post(route('orders.status.update', $order), statusChangeData($order, 'start_production'))->assertRedirect()->assertSessionHas('error');
-    expect($order->fresh()->status)->toBe('Pending');
+    $this->post(route('orders.status.update', $order), statusChangeData($order, 'reopen', ['notes' => 'Correction']))->assertRedirect()->assertSessionHas('error');
+    expect($order->fresh()->status)->toBe('In production');
     expect($order->fresh()->workflow_version)->toBe(0);
     $this->assertDatabaseCount('order_status_histories', 0);
     Exceptions::assertReported(RuntimeException::class);

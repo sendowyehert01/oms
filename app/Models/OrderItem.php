@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\ItemAvailability;
 use App\ItemMeasurement;
+use App\ItemProductionStatus;
 use App\MoneyAmount;
 use Database\Factories\OrderItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -40,6 +42,11 @@ class OrderItem extends Model
         return $this->measurement()->subtotalInCents(MoneyAmount::inCents($this->unit_price));
     }
 
+    public function isReadyForDelivery(): bool
+    {
+        return $this->production_status === ItemProductionStatus::ReadyForDelivery && ! $this->ready_check_required;
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
@@ -47,6 +54,13 @@ class OrderItem extends Model
             'order_id' => 'integer',
             'quantity' => 'string',
             'unit_price' => 'decimal:2',
+            'stock_availability' => ItemAvailability::class,
+            'production_status' => ItemProductionStatus::class,
+            'ready_check_required' => 'boolean',
+            'availability_checked_at' => 'datetime',
+            'ready_confirmed_at' => 'datetime',
+            'availability_checked_by' => 'integer',
+            'ready_confirmed_by' => 'integer',
         ];
     }
 }
