@@ -95,6 +95,7 @@
         <x-payment-summary :summary="$paymentSummary" :record-url="route('orders.payments.create', ['order' => $order['id']])" />
     @endif
     @if ($workflowOrder !== null)
+        <x-delivery-panel :order="$workflowOrder" :summary="$paymentSummary" />
         <x-order-workflow-panel :order="$workflowOrder" :history="$statusHistory" />
     @endif
 </x-app-layout>

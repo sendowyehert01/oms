@@ -38,7 +38,7 @@ test('staff dashboard shows personal totals lists statuses and account details',
         ->assertDontSee('href="'.route('orders.show', $adminOrder).'"', false);
     expect($response['metrics']['clients'])->toBe(['total' => 2, 'with_orders' => 1, 'without_orders' => 1]);
     expect($response['metrics']['orders'])->toBe(1);
-    expect(array_column($response['metrics']['statuses'], 'count'))->toBe([0, 1, 0, 0]);
+    expect(array_column($response['metrics']['statuses'], 'count'))->toBe([0, 1, 0, 0, 0]);
     expect($response['clients']->total())->toBe(2);
     expect($response['orders']->pluck('id')->all())->toBe([$ownOrder->id]);
     expect($response['performance']['days'][29])->toBe(['date' => '2026-11-04', 'clients' => 2, 'orders' => 1]);
@@ -56,7 +56,7 @@ test('shared client orders count toward the order creators dashboard without cou
 
     expect($response['metrics']['clients'])->toBe(['total' => 0, 'with_orders' => 0, 'without_orders' => 0]);
     expect($response['metrics']['orders'])->toBe(1);
-    expect(array_column($response['metrics']['statuses'], 'count'))->toBe([0, 0, 0, 1]);
+    expect(array_column($response['metrics']['statuses'], 'count'))->toBe([0, 0, 0, 0, 1]);
     expect($response['clients']->total())->toBe(0);
     expect($response['orders']->pluck('id')->all())->toBe([$ownOrder->id]);
     expect($response['performance']['days'][29])->toBe(['date' => '2026-11-04', 'clients' => 0, 'orders' => 1]);

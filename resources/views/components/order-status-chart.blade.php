@@ -5,6 +5,7 @@
         'Pending' => '#f59e0b',
         'In production' => '#6366f1',
         'Ready for delivery' => '#06b6d4',
+        'Delivered' => '#8b5cf6',
         'Completed' => '#10b981',
         'Other status' => '#64748b',
     ];

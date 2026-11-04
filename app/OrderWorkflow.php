@@ -14,12 +14,22 @@ use Illuminate\Validation\ValidationException;
 
 class OrderWorkflow
 {
+    public function __construct(private readonly OrderDeliveryWorkflow $delivery) {}
+
     /** @param array<string, mixed> $data */
     public function update(Order $order, User $actor, array $data): Order
     {
         return $this->perform($order, $actor, $data, function (Order $locked, User $actor, array $data): void {
             $previous = $locked->status;
+            $eventNotes = null;
             switch ($data['action']) {
+                case 'deliver':
+                    $this->delivery->confirm($locked, $actor, $data);
+                    $eventNotes = 'Full delivery on '.$data['delivery_date'].' received by '.$data['delivery_recipient'].(filled($data['notes'] ?? null) ? "\n".$data['notes'] : '');
+                    break;
+                case 'complete':
+                    $this->delivery->complete($locked);
+                    break;
                 case 'start_production':
                 case 'mark_ready':
                     throw ValidationException::withMessages(['action' => 'Use the per-item availability and production controls to update this order.']);
@@ -30,11 +40,20 @@ class OrderWorkflow
                     $locked->status = OrderStatus::Pending->value;
                     $this->reopenItems($locked, $actor, $data);
                     $locked->item_tracking_started_at = null;
+                    $locked->delivery_date = null;
+                    $locked->delivery_recipient = null;
+                    $locked->delivery_notes = null;
+                    $locked->delivery_confirmed_by = null;
+                    $locked->delivery_confirmed_by_name = null;
+                    $locked->delivery_confirmed_at = null;
                     break;
                 default:
                     throw ValidationException::withMessages(['action' => 'This status action is unavailable.']);
             }
-            $this->record($locked, $actor, $data, $data['action'] === 'reopen' ? 'order_reopened' : 'order_status_changed', $previous, $locked->status);
+            $eventType = match ($data['action']) {
+                'reopen' => 'order_reopened', 'deliver' => 'delivery_confirmed', 'complete' => 'order_completed', default => 'order_status_changed',
+            };
+            $this->record($locked, $actor, $data, $eventType, $previous, $locked->status, eventNotes: $eventNotes);
         });
     }
 
@@ -67,7 +86,7 @@ class OrderWorkflow
     }
 
     /** @param array<string, mixed> $data */
-    public function record(Order $order, User $actor, array $data, string $eventType, ?string $from, string $to, ?OrderItem $item = null, bool $additional = false): OrderStatusHistory
+    public function record(Order $order, User $actor, array $data, string $eventType, ?string $from, string $to, ?OrderItem $item = null, bool $additional = false, ?string $eventNotes = null): OrderStatusHistory
     {
         return $order->statusHistory()->create([
             'actor_id' => $actor->id,
@@ -77,7 +96,7 @@ class OrderWorkflow
             'event_type' => $eventType,
             'from_status' => $from,
             'to_status' => $to,
-            'notes' => $data['notes'] ?? null,
+            'notes' => $eventNotes ?? $data['notes'] ?? null,
             'submission_key' => $additional ? (string) Str::uuid() : $data['submission_key'],
             'request_hash' => $this->fingerprint($data),
         ]);
