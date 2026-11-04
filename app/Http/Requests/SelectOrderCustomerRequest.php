@@ -7,7 +7,6 @@ use App\Models\Order;
 use App\OrderDrafts;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Exists;
 
 class SelectOrderCustomerRequest extends FormRequest
 {
@@ -50,7 +49,7 @@ class SelectOrderCustomerRequest extends FormRequest
         return [
             'submission_key' => ['required', 'uuid'],
             'customer_type' => ['required', Rule::in(['existing', 'new'])],
-            'customer_id' => ['exclude_unless:customer_type,existing', 'required_if:customer_type,existing', 'integer', Rule::exists(Customer::class, 'id')->when(! $this->user()->isAdmin(), fn (Exists $rule): Exists => $rule->where('created_by', $this->user()->id))],
+            'customer_id' => ['exclude_unless:customer_type,existing', 'required_if:customer_type,existing', 'integer', Rule::exists(Customer::class, 'id')],
             'customer_name' => ['exclude_unless:customer_type,new', 'required_if:customer_type,new', 'string', 'max:255'],
             'contact_person' => ['exclude_unless:customer_type,new', 'required_if:customer_type,new', 'string', 'max:255'],
             'address' => ['exclude_unless:customer_type,new', 'required_if:customer_type,new', 'string', 'max:2000'],

@@ -11,7 +11,6 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\NestedRules;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Exists;
 
 class StoreOrderRequest extends FormRequest
 {
@@ -59,7 +58,7 @@ class StoreOrderRequest extends FormRequest
     {
         return [
             'submission_key' => ['required', 'uuid'],
-            'customer_id' => ['nullable', 'integer', Rule::exists(Customer::class, 'id')->when(! $this->user()->isAdmin(), fn (Exists $rule): Exists => $rule->where('created_by', $this->user()->id))],
+            'customer_id' => ['nullable', 'integer', Rule::exists(Customer::class, 'id')],
             'customer_name' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:255'],
             'contact_person' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:255'],
             'address' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:2000'],

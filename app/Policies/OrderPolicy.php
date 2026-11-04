@@ -25,7 +25,9 @@ class OrderPolicy
 
     public function view(User $user, Order $order): Response
     {
-        return $order->customer?->created_by === $user->id ? Response::allow() : Response::denyAsNotFound();
+        return $order->created_by === $user->id || $order->customer?->created_by === $user->id
+            ? Response::allow()
+            : Response::denyAsNotFound();
     }
 
     public function recordPayment(User $user, Order $order): Response

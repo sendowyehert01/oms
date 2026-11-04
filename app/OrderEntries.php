@@ -98,7 +98,9 @@ class OrderEntries
 
     public function hasCustomers(User $user): bool
     {
-        return Schema::hasTable('customers') && Customer::query()->visibleTo($user)->exists();
+        Gate::forUser($user)->authorize('viewAny', Customer::class);
+
+        return Schema::hasTable('customers') && Customer::query()->exists();
     }
 
     /**
@@ -139,7 +141,7 @@ class OrderEntries
 
         try {
             return DB::transaction(function () use ($data, $user): int {
-                $customer = isset($data['customer_id']) ? Customer::query()->visibleTo($user)->lockForUpdate()->findOrFail($data['customer_id']) : new Customer([
+                $customer = isset($data['customer_id']) ? Customer::query()->lockForUpdate()->findOrFail($data['customer_id']) : new Customer([
                     'company_name' => $data['customer_name'],
                     'contact_person' => $data['contact_person'],
                     'address' => $data['address'],

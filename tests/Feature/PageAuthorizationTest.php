@@ -39,20 +39,24 @@ function authorizationOrderData(array $overrides = []): array
     ], $overrides);
 }
 
-test('staff lists and searches expose only orders belonging to their clients', function (): void {
+test('staff lists and searches expose their own orders plus orders belonging to their clients', function (): void {
     $adminOrder = Order::factory()->for($this->client)->for($this->admin, 'creator')->hasItems(1)->create();
+    $sharedOrder = Order::factory()->for($this->otherClient)->for($this->staff, 'creator')->hasItems(1)->create();
     $response = $this->get(route('orders.index'));
-    $response->assertOk()->assertSee('Own client')->assertDontSee('Private client')->assertDontSee('Legacy client')
+    $response->assertOk()->assertSee('Own client')->assertSee('Private client')->assertDontSee('Legacy client')
         ->assertDontSee('data-delete-order', false)->assertDontSee('Sample orders');
-    expect($response['orders']->pluck('id')->all())->toBe([$adminOrder->id, $this->order->id]);
+    expect($response['orders']->pluck('id')->all())->toBe([$sharedOrder->id, $adminOrder->id, $this->order->id]);
     $this->get(route('orders.show', $adminOrder))->assertOk()->assertSee('Own client');
     $this->get(route('orders.payments.create', $adminOrder))->assertOk();
-    $this->get(route('orders.index', ['search' => 'Private']), ['X-Orders-Fragment' => '1'])
-        ->assertOk()->assertSee('No matching orders')->assertDontSee('Private client');
+    $search = $this->get(route('orders.index', ['search' => 'Private']))->assertOk();
+    expect($search['orders']->pluck('id')->all())->toBe([$sharedOrder->id]);
+    $this->get(route('orders.index', ['search' => 'Legacy']), ['X-Orders-Fragment' => '1'])
+        ->assertOk()->assertSee('No matching orders')->assertDontSee('Legacy client');
 });
 
 test('foreign and legacy orders cannot be read paid or deleted by staff', function (string $record): void {
     $order = $this->{$record};
+    Order::factory()->for($order->customer)->for($this->staff, 'creator')->create();
     $payment = Payment::factory()->for($order)->create(['receipt_storage' => 'supabase', 'receipt_bucket' => 'payment-receipts', 'receipt_path' => 'payment-receipts/11111111-1111-4111-8111-111111111111.pdf', 'receipt_name' => 'private.pdf', 'receipt_mime_type' => 'application/pdf']);
     Http::preventStrayRequests();
     $this->get(route('orders.show', $order))->assertNotFound();
@@ -61,25 +65,28 @@ test('foreign and legacy orders cannot be read paid or deleted by staff', functi
     $this->get(route('orders.payments.receipt', ['order' => $order, 'payment' => $payment]))->assertNotFound();
     $this->deleteJson(route('orders.destroy', $order), ['confirmed' => true])->assertNotFound();
     $this->assertDatabaseHas('orders', ['id' => $order->id]);
+    $this->assertDatabaseCount('orders', 4);
     $this->assertDatabaseCount('payments', 1);
     Http::assertNothingSent();
 })->with(['otherOrder', 'legacyOrder']);
 
-test('staff may record and download their client payment but may not delete the order', function (): void {
+test('staff may record and download visible payments but may not delete orders', function (bool $sharedClient): void {
+    $order = $sharedClient ? Order::factory()->for($this->otherClient)->for($this->staff, 'creator')
+        ->hasItems(1, ['quantity' => '10', 'unit_price' => '100.00'])->create() : $this->order;
     Storage::fake('local');
     config(['payment-receipts.storage' => 'local', 'payment-receipts.local_disk' => 'local']);
-    $this->get(route('orders.payments.create', $this->order))->assertOk();
-    $this->post(route('orders.payments.store', $this->order), [
+    $this->get(route('orders.payments.create', $order))->assertOk();
+    $this->post(route('orders.payments.store', $order), [
         'submission_key' => (string) Str::uuid(), 'amount' => '100.00', 'payment_date' => '2026-11-04', 'payment_type' => 'down_payment',
-    ])->assertRedirectToRoute('orders.show', ['order' => $this->order])->assertSessionHasNoErrors();
-    $payment = $this->order->payments()->firstOrFail();
+    ])->assertRedirectToRoute('orders.show', ['order' => $order])->assertSessionHasNoErrors();
+    $payment = $order->payments()->firstOrFail();
     $path = 'payment-receipts/11111111-1111-4111-8111-111111111111.pdf';
     $payment->forceFill(['receipt_storage' => 'local', 'receipt_path' => $path, 'receipt_name' => 'own.pdf', 'receipt_mime_type' => 'application/pdf'])->save();
     Storage::disk('local')->put($path, 'receipt contents');
-    $this->get(route('orders.payments.receipt', ['order' => $this->order, 'payment' => $payment]))->assertOk()->assertDownload('own.pdf');
-    $this->deleteJson(route('orders.destroy', $this->order), ['confirmed' => true])->assertForbidden();
-    $this->assertDatabaseHas('orders', ['id' => $this->order->id]);
-});
+    $this->get(route('orders.payments.receipt', ['order' => $order, 'payment' => $payment]))->assertOk()->assertDownload('own.pdf');
+    $this->deleteJson(route('orders.destroy', $order), ['confirmed' => true])->assertForbidden();
+    $this->assertDatabaseHas('orders', ['id' => $order->id]);
+})->with(['own client' => false, 'shared client' => true]);
 
 test('staff cannot use sample routes or manage staff accounts', function (): void {
     $this->get(route('orders.samples.show', ['order' => 1]))->assertNotFound();
@@ -95,25 +102,36 @@ test('a visible order cannot be used to download another orders receipt', functi
     Http::assertNothingSent();
 });
 
-test('customer selection is scoped and forged client ids cannot save an order', function (string $record): void {
+test('staff can select shared and legacy clients without changing their creators', function (string $record): void {
+    Customer::factory()->for($this->admin, 'creator')->create(['company_name' => 'Admin client']);
     $draft = $this->get(route('orders.create'))->assertOk()['submissionKey'];
     $this->withCookie(config('session.cookie'), session()->getId());
     $this->get(route('orders.creation.customer', ['type' => 'existing', 'draft' => $draft]))
-        ->assertOk()->assertSee('Own client')->assertDontSee('Private client')->assertDontSee('Legacy client');
+        ->assertOk()->assertSee('Own client')->assertSee('Private client')->assertSee('Legacy client')->assertSee('Admin client');
     $this->get(route('orders.creation.customer', ['type' => 'existing', 'draft' => $draft, 'search' => 'Private']))
-        ->assertOk()->assertDontSee('Private client');
+        ->assertOk()->assertSee('Private client')->assertDontSee('Own client')->assertDontSee('Legacy client');
     $client = $this->{$record};
+    $originalCreator = $client->created_by;
     $this->post(route('orders.creation.select-customer'), ['submission_key' => $draft, 'customer_type' => 'existing', 'customer_id' => $client->id])
-        ->assertSessionHasErrors('customer_id');
-    $this->post(route('orders.store'), authorizationOrderData(['customer_id' => $client->id]))->assertSessionHasErrors('customer_id');
-    $this->assertDatabaseCount('orders', 3);
+        ->assertRedirectToRoute('orders.creation.details', ['draft' => $draft])->assertSessionHasNoErrors();
+    $this->get(route('orders.creation.details', ['draft' => $draft]))->assertOk()->assertSee($client->company_name);
+    $this->post(route('orders.store'), authorizationOrderData(['submission_key' => $draft]))->assertRedirect()->assertSessionHasNoErrors();
+    $order = Order::query()->latest('id')->firstOrFail();
+    expect($order->customer_id)->toBe($client->id);
+    expect($order->created_by)->toBe($this->staff->id);
+    expect($client->refresh()->created_by)->toBe($originalCreator);
+    $this->get(route('orders.payments.create', $order))->assertOk();
+    $this->get(route('orders.show', $order))->assertOk();
+    $this->assertDatabaseCount('customers', 4);
+    $this->assertDatabaseCount('orders', 4);
 })->with(['otherClient', 'legacyClient']);
 
-test('restored drafts recheck client visibility before showing details', function (): void {
+test('restored drafts recheck that the selected client still exists before showing details', function (): void {
+    $selectedClient = Customer::factory()->for($this->otherStaff, 'creator')->create();
     $draft = $this->get(route('orders.create'))['submissionKey'];
     $this->withCookie(config('session.cookie'), session()->getId());
-    $this->post(route('orders.creation.select-customer'), ['submission_key' => $draft, 'customer_type' => 'existing', 'customer_id' => $this->client->id])->assertRedirect();
-    $this->client->creator()->associate($this->otherStaff)->save();
+    $this->post(route('orders.creation.select-customer'), ['submission_key' => $draft, 'customer_type' => 'existing', 'customer_id' => $selectedClient->id])->assertRedirect();
+    $selectedClient->delete();
     $this->get(route('orders.creation.details', ['draft' => $draft]))->assertRedirectToRoute('orders.creation.customer', ['type' => 'existing', 'draft' => $draft]);
     $this->post(route('orders.store'), authorizationOrderData(['submission_key' => $draft]))->assertSessionHasErrors('customer_id');
     $this->assertDatabaseCount('orders', 3);
@@ -143,8 +161,8 @@ test('duplicate submission keys are isolated to their creator even for a visible
     $this->assertDatabaseCount('orders', 5);
 });
 
-test('order creation service rechecks ownership even when invoked without request validation', function (): void {
-    expect(fn () => app(OrderEntries::class)->create(authorizationOrderData(['customer_id' => $this->otherClient->id]), $this->staff))
+test('order creation service rechecks client existence even when invoked without request validation', function (): void {
+    expect(fn () => app(OrderEntries::class)->create(authorizationOrderData(['customer_id' => 99999]), $this->staff))
         ->toThrow(ModelNotFoundException::class);
     $this->assertDatabaseCount('orders', 3);
 });
@@ -162,6 +180,7 @@ test('admin can see all records create for legacy clients and delete unpaid orde
 });
 
 test('policies permit staff ownership actions and reserve deletion to administrators', function (): void {
+    $sharedOrder = Order::factory()->for($this->otherClient)->for($this->staff, 'creator')->create();
     foreach ([$this->staff, $this->admin] as $user) {
         foreach ([Customer::class, Order::class] as $model) {
             expect(Gate::forUser($user)->allows('viewAny', $model))->toBeTrue();
@@ -170,13 +189,33 @@ test('policies permit staff ownership actions and reserve deletion to administra
     }
     foreach (['view', 'recordPayment'] as $ability) {
         expect(Gate::forUser($this->staff)->allows($ability, $this->order))->toBeTrue();
+        expect(Gate::forUser($this->staff)->allows($ability, $sharedOrder))->toBeTrue();
         expect(Gate::forUser($this->staff)->inspect($ability, $this->otherOrder)->status())->toBe(404);
         expect(Gate::forUser($this->staff)->inspect($ability, $this->legacyOrder)->status())->toBe(404);
         expect(Gate::forUser($this->admin)->allows($ability, $this->legacyOrder))->toBeTrue();
     }
     expect(Gate::forUser($this->staff)->allows('delete', $this->order))->toBeFalse();
+    expect(Gate::forUser($this->staff)->allows('delete', $sharedOrder))->toBeFalse();
     expect(Gate::forUser($this->admin)->allows('delete', $this->otherOrder))->toBeTrue();
     expect(Gate::forUser($this->staff)->allows('view', $this->client))->toBeTrue();
-    expect(Gate::forUser($this->staff)->inspect('view', $this->legacyClient)->status())->toBe(404);
+    expect(Gate::forUser($this->staff)->allows('view', $this->otherClient))->toBeTrue();
+    expect(Gate::forUser($this->staff)->allows('view', $this->legacyClient))->toBeTrue();
     expect(Gate::forUser($this->admin)->allows('view', $this->legacyClient))->toBeTrue();
+});
+
+test('order visibility remains grouped when combined with additional filters', function (): void {
+    $sharedOrder = Order::factory()->for($this->otherClient)->for($this->staff, 'creator')->create(['status' => 'Completed']);
+    $adminOrder = Order::factory()->for($this->client)->for($this->admin, 'creator')->create(['status' => 'Completed']);
+    $this->otherOrder->update(['status' => 'Completed']);
+    expect(Order::query()->visibleTo($this->staff)->where('status', 'Completed')->orderBy('id')->pluck('id')->all())
+        ->toBe([$sharedOrder->id, $adminOrder->id]);
+});
+
+test('staff cannot select or save an order for an invalid client id', function (): void {
+    $draft = $this->get(route('orders.create'))->assertOk()['submissionKey'];
+    $this->withCookie(config('session.cookie'), session()->getId());
+    $this->post(route('orders.creation.select-customer'), ['submission_key' => $draft, 'customer_type' => 'existing', 'customer_id' => 99999])
+        ->assertSessionHasErrors('customer_id');
+    $this->post(route('orders.store'), authorizationOrderData(['customer_id' => 99999]))->assertSessionHasErrors('customer_id');
+    $this->assertDatabaseCount('orders', 3);
 });

@@ -45,6 +45,31 @@ test('staff dashboard shows personal totals lists statuses and account details',
     $this->get(route('orders.index'))->assertOk();
 });
 
+test('shared client orders count toward the order creators dashboard without counting the client as theirs', function (): void {
+    $staff = User::factory()->create();
+    $other = User::factory()->create();
+    $client = Customer::factory()->for($other, 'creator')->create(['company_name' => 'Shared client']);
+    $ownOrder = Order::factory()->for($client)->for($staff, 'creator')->hasItems(1)->create(['status' => 'Completed']);
+    $otherOrder = Order::factory()->for($client)->for($other, 'creator')->hasItems(1)->create(['status' => 'Pending']);
+
+    $response = $this->actingAs($staff)->get(route('dashboard'))->assertOk()->assertSee('Shared client');
+
+    expect($response['metrics']['clients'])->toBe(['total' => 0, 'with_orders' => 0, 'without_orders' => 0]);
+    expect($response['metrics']['orders'])->toBe(1);
+    expect(array_column($response['metrics']['statuses'], 'count'))->toBe([0, 0, 0, 1]);
+    expect($response['clients']->total())->toBe(0);
+    expect($response['orders']->pluck('id')->all())->toBe([$ownOrder->id]);
+    expect($response['performance']['days'][29])->toBe(['date' => '2026-11-04', 'clients' => 0, 'orders' => 1]);
+    $this->get(route('orders.show', $otherOrder))->assertNotFound();
+
+    $ownerDashboard = $this->actingAs($other)->get(route('dashboard'))->assertOk();
+    expect($ownerDashboard['metrics']['clients']['total'])->toBe(1);
+    expect($ownerDashboard['metrics']['orders'])->toBe(1);
+    expect($ownerDashboard['orders']->pluck('id')->all())->toBe([$otherOrder->id]);
+    $ownerOrders = $this->get(route('orders.index'))->assertOk();
+    expect($ownerOrders['orders']->pluck('id')->all())->toBe([$otherOrder->id, $ownOrder->id]);
+});
+
 test('new staff has a real empty dashboard even when unassigned and other staff records exist', function (): void {
     $staff = User::factory()->create();
     Order::factory()->create();
