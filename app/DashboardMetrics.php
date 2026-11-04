@@ -14,8 +14,9 @@ class DashboardMetrics
      */
     public function summary(User $user): array
     {
-        $clientsWithOrders = Customer::query()->visibleTo($user)->has('orders')->count();
-        $clientsWithoutOrders = Customer::query()->visibleTo($user)->doesntHave('orders')->count();
+        $clients = Customer::query()->when(! $user->isAdmin(), fn (Builder $query): Builder => $query->createdBy($user));
+        $clientsWithOrders = (clone $clients)->has('orders')->count();
+        $clientsWithoutOrders = (clone $clients)->doesntHave('orders')->count();
 
         $statusCases = [];
         $statusBindings = [];

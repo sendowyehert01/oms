@@ -36,15 +36,6 @@ class Customer extends Model
         $query->where('customers.created_by', $user->id);
     }
 
-    /** @param Builder<Customer> $query */
-    #[Scope]
-    protected function visibleTo(Builder $query, User $user): void
-    {
-        if (! $user->isAdmin()) {
-            $query->createdBy($user);
-        }
-    }
-
     /** @return array<string, string> */
     protected function casts(): array
     {

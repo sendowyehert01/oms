@@ -4,7 +4,6 @@ namespace App\Policies;
 
 use App\Models\Customer;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
 
 class CustomerPolicy
 {
@@ -23,8 +22,8 @@ class CustomerPolicy
         return true;
     }
 
-    public function view(User $user, Customer $customer): Response
+    public function view(User $user, Customer $customer): bool
     {
-        return $customer->created_by === $user->id ? Response::allow() : Response::denyAsNotFound();
+        return true;
     }
 }

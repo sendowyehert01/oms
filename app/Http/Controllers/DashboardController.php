@@ -21,7 +21,8 @@ class DashboardController extends Controller
         try {
             $metrics = $dashboardMetrics->summary($user);
             $performance = $dailyPerformance->summary($user);
-            $clients = Customer::query()->visibleTo($user)
+            $clients = Customer::query()
+                ->when(! $user->isAdmin(), fn (Builder $query): Builder => $query->createdBy($user))
                 ->select('id', 'company_name', 'contact_person', 'created_at')->withCount('orders')
                 ->orderByDesc('id')->paginate(5, ['*'], 'clients_page')->withQueryString();
             $orders = Order::query()

@@ -51,9 +51,8 @@ class OrderCreationController extends Controller
 
         if ($type === 'existing') {
             try {
-                $selectedCustomer = $selectedCustomerId === false ? null : Customer::query()->visibleTo($request->user())->find($selectedCustomerId);
+                $selectedCustomer = $selectedCustomerId === false ? null : Customer::query()->find($selectedCustomerId);
                 $customers = Customer::query()
-                    ->visibleTo($request->user())
                     ->when($search !== '', fn (Builder $query): Builder => $query->where(fn (Builder $query): Builder => $query
                         ->whereLike('company_name', '%'.$search.'%')
                         ->orWhereLike('contact_person', '%'.$search.'%')
@@ -97,7 +96,7 @@ class OrderCreationController extends Controller
         $customer = $draft['customer'];
 
         if ($draft['customer_type'] === 'existing') {
-            $selectedCustomer = Customer::query()->visibleTo($request->user())->find($customer['customer_id']);
+            $selectedCustomer = Customer::query()->find($customer['customer_id']);
 
             if ($selectedCustomer === null) {
                 return to_route('orders.creation.customer', ['type' => 'existing', 'draft' => $submissionKey])

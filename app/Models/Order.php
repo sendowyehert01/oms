@@ -53,7 +53,9 @@ class Order extends Model
     protected function visibleTo(Builder $query, User $user): void
     {
         if (! $user->isAdmin()) {
-            $query->whereHas('customer', fn (Builder $query): Builder => $query->createdBy($user));
+            $query->where(fn (Builder $query): Builder => $query
+                ->createdBy($user)
+                ->orWhereHas('customer', fn (Builder $query): Builder => $query->createdBy($user)));
         }
     }
 
