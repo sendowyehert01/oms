@@ -73,6 +73,9 @@ class Order extends Model
             'created_by' => 'integer',
             'workflow_version' => 'integer',
             'item_tracking_started_at' => 'datetime',
+            'delivery_date' => 'date:Y-m-d',
+            'delivery_confirmed_by' => 'integer',
+            'delivery_confirmed_at' => 'datetime',
             'order_date' => 'date:Y-m-d',
             'due_date' => 'date:Y-m-d',
         ];

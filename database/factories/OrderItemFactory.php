@@ -37,4 +37,16 @@ class OrderItemFactory extends Factory
             'customization_notes' => 'Pack in bundles of 100.',
         ]);
     }
+
+    public function readyForDelivery(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'stock_availability' => 'Available',
+            'production_status' => 'Ready for delivery',
+            'ready_check_required' => false,
+            'readiness_source' => 'stock',
+            'ready_confirmed_at' => now(),
+            'ready_confirmed_by_name' => 'Test administrator',
+        ]);
+    }
 }

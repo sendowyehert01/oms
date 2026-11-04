@@ -25,6 +25,7 @@ class OrderFactory extends Factory
             'due_date' => null,
             'terms_of_payment' => 'Cash on delivery',
             'status' => 'Pending',
+            'workflow_version' => 0,
             'submission_key' => (string) Str::uuid(),
         ];
     }

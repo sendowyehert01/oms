@@ -27,11 +27,11 @@ test('an empty dashboard shows real zero counts instead of illustrative orders',
         ->assertDontSee('Sample orders')->assertSee('Your account');
     expect($response['metrics']['clients'])->toBe(['total' => 0, 'with_orders' => 0, 'without_orders' => 0]);
     expect($response['metrics']['orders'])->toBe(0);
-    expect(array_column($response['metrics']['statuses'], 'count'))->toBe([0, 0, 0, 0]);
+    expect(array_column($response['metrics']['statuses'], 'count'))->toBe([0, 0, 0, 0, 0]);
     expect($response['user']->id)->toBe(1);
 });
 
-test('client totals count each client once and the pie represents all four order stages', function (): void {
+test('client totals count each client once and the pie represents all order stages', function (): void {
     $repeatClient = Customer::factory()->create();
     $secondClient = Customer::factory()->create();
     Customer::factory()->count(2)->create();
@@ -54,6 +54,7 @@ test('client totals count each client once and the pie represents all four order
         ['label' => 'Pending', 'count' => 2],
         ['label' => 'In production', 'count' => 1],
         ['label' => 'Ready for delivery', 'count' => 1],
+        ['label' => 'Delivered', 'count' => 0],
         ['label' => 'Completed', 'count' => 1],
     ]);
 });
@@ -72,6 +73,7 @@ test('a single populated stage fills the entire pie and leaves absent stages at 
     'pending' => ['Pending', '#f59e0b'],
     'production' => ['In production', '#6366f1'],
     'delivery' => ['Ready for delivery', '#06b6d4'],
+    'delivered' => ['Delivered', '#8b5cf6'],
     'completed' => ['Completed', '#10b981'],
 ]);
 
@@ -86,7 +88,7 @@ test('historical statuses are grouped visibly so the chart does not omit saved o
         ->assertSee('#64748b 120.000000deg 360.000000deg', false)
         ->assertSee('Cancelled')->assertSee('<script>alert(1)</script>')->assertDontSee('<script>alert(1)</script>', false);
     expect($response['metrics']['orders'])->toBe(3);
-    expect($response['metrics']['statuses'][4])->toBe(['label' => 'Other status', 'count' => 2]);
+    expect($response['metrics']['statuses'][5])->toBe(['label' => 'Other status', 'count' => 2]);
     expect(array_sum(array_column($response['metrics']['statuses'], 'count')))->toBe(3);
 });
 
