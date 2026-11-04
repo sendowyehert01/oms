@@ -18,6 +18,12 @@ services:
         value: "false"
       - key: APP_KEY_MATERIAL
         generateValue: true
+      - key: OMS_ADMIN_NAME
+        sync: false
+      - key: OMS_ADMIN_EMAIL
+        sync: false
+      - key: OMS_ADMIN_PASSWORD
+        sync: false
       - key: TRUSTED_PROXIES
         value: "*"
       - key: DB_CONNECTION
