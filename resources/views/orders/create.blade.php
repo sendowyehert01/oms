@@ -23,13 +23,10 @@
                 <x-form-input name="order_date" label="Order date" type="date" :value="$orderInput['order_date'] ?? now()->toDateString()" />
                 <x-form-input name="terms_of_payment" label="Terms of Payment" :value="$orderInput['terms_of_payment'] ?? ''" maxlength="255" placeholder="e.g. Cash on delivery or Net 30" />
                 <div>
-                    <label for="status" class="mb-2 block text-sm font-medium">Order status <span aria-hidden="true" class="text-rose-600">*</span></label>
-                    <select id="status" name="status" required class="oms-input min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:outline-2 focus:outline-brand-500 dark:border-slate-700 dark:bg-slate-950" @if ($errors->has('status')) aria-invalid="true" aria-describedby="status-error" @endif>
-                        @foreach ($statuses as $status)
-                            <option value="{{ $status }}" @selected(($orderInput['status'] ?? 'Pending') === $status)>{{ $status }}</option>
-                        @endforeach
-                    </select>
-                    @error('status')<p id="status-error" class="mt-2 text-sm text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+                    <p class="mb-2 text-sm font-medium">Initial order status</p>
+                    <input type="hidden" name="status" value="Pending">
+                    <div class="flex min-h-12 items-center"><x-order-status status="Pending" /></div>
+                    <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Production progress is updated after the order is saved.</p>
                 </div>
             </div>
         </section>

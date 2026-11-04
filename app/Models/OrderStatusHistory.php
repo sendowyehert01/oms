@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
 
-#[Fillable(['order_id', 'order_item_id', 'item_name', 'actor_id', 'actor_name', 'event_type', 'from_status', 'to_status', 'notes', 'submission_key'])]
+#[Fillable(['order_id', 'order_item_id', 'item_name', 'actor_id', 'actor_name', 'event_type', 'from_status', 'to_status', 'notes', 'submission_key', 'request_hash'])]
 class OrderStatusHistory extends Model
 {
     public const UPDATED_AT = null;

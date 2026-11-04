@@ -83,7 +83,7 @@ test('different item specifications save independently and appear under the corr
     $this->get(route('orders.show', ['order' => $item->order_id]))->assertOk()
         ->assertSeeInOrder(['Printed bags', 'LDPE / transparent', 'Bottom Seal', 'Special bags', 'PP / blue', 'Double heat seal', 'Oval handle'])
         ->assertSee('Company logo / 2 colors')->assertSee('8 x 12 inches / 0.03 mm')->assertSee('Handle with care.')
-        ->assertSee('6.25')->assertDontSee('<textarea', false);
+        ->assertSee('6.25')->assertDontSee('name="items[', false);
 });
 
 test('orders can still be created without optional item specifications', function (): void {
