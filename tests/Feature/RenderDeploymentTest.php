@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 
@@ -24,6 +25,7 @@ test('the health endpoint boots without opening the configured database connecti
 
 test('configured proxy headers generate HTTPS links behind the Render load balancer', function (): void {
     config(['trustedproxy.proxies' => '*']);
+    $this->actingAs(User::factory()->create());
 
     $response = $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.2'])
         ->withHeaders(['X-Forwarded-Proto' => 'https', 'X-Forwarded-Port' => '443', 'X-Forwarded-Host' => 'untrusted.example'])
@@ -37,6 +39,7 @@ test('configured proxy headers generate HTTPS links behind the Render load balan
 
 test('unconfigured proxies cannot change the scheme of local application links', function (): void {
     config(['trustedproxy.proxies' => null]);
+    $this->actingAs(User::factory()->create());
 
     $response = $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.2'])
         ->withHeaders(['X-Forwarded-Proto' => 'https', 'X-Forwarded-Port' => '443'])
@@ -47,6 +50,7 @@ test('unconfigured proxies cannot change the scheme of local application links',
 
 test('database sessions retain validation errors and entered values between form requests', function (): void {
     config(['session.driver' => 'database']);
+    $this->actingAs(User::factory()->create());
     $choice = $this->get(route('orders.create'))->assertOk();
     $key = $choice->viewData('submissionKey');
     $this->withCookie(config('session.cookie'), session()->getId());
@@ -75,6 +79,7 @@ test('database sessions retain validation errors and entered values between form
 
 test('database sessions retain sample deletion state after JSON requests', function (): void {
     config(['session.driver' => 'database']);
+    $this->actingAs(User::factory()->create());
     $this->get(route('orders.index'))->assertOk();
     $this->withCookie(config('session.cookie'), session()->getId());
 

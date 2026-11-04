@@ -2,7 +2,7 @@
 
 use App\Models\Customer;
 use App\Models\Order;
-use Illuminate\Auth\GenericUser;
+use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +14,7 @@ pest()->use(DatabaseMigrations::class);
 
 beforeEach(function (): void {
     $this->withoutVite();
+    $this->actingAs(User::factory()->make(['id' => 1]));
 });
 
 test('an empty dashboard shows real zero counts instead of illustrative orders', function (): void {
@@ -22,11 +23,11 @@ test('an empty dashboard shows real zero counts instead of illustrative orders',
     $response->assertOk()->assertViewIs('dashboard')
         ->assertSee('No orders yet. Create an order to see its status here.')
         ->assertSee('0.0%')->assertDontSee('conic-gradient', false)
-        ->assertDontSee('Sample orders')->assertDontSee('Your account');
+        ->assertDontSee('Sample orders')->assertSee('Your account');
     expect($response['metrics']['clients'])->toBe(['total' => 0, 'with_orders' => 0, 'without_orders' => 0]);
     expect($response['metrics']['orders'])->toBe(0);
     expect(array_column($response['metrics']['statuses'], 'count'))->toBe([0, 0, 0, 0]);
-    expect($response['user'])->toBeNull();
+    expect($response['user']->id)->toBe(1);
 });
 
 test('client totals count each client once and the pie represents all four order stages', function (): void {
@@ -134,8 +135,7 @@ test('dashboard aggregation stays bounded without hydrating clients orders or re
 })->with(['one order' => 1, 'larger dataset' => 50]);
 
 test('future authenticated user details appear safely while metrics remain independent', function (): void {
-    $user = new GenericUser([
-        'id' => 1,
+    $user = User::factory()->make([
         'name' => '<script>alert("name")</script>',
         'email' => '<img src=x onerror=alert(1)>',
     ]);
@@ -172,7 +172,7 @@ test('dashboard and orders navigation identify the current page and preserve a s
     $dashboard = $this->get(route('dashboard'));
     $orders = $this->get(route('orders.index'));
 
-    $dashboard->assertOk()->assertSee('href="'.e(route('home')).'"', false)
+    $dashboard->assertOk()->assertSee('href="'.e(route('dashboard')).'"', false)
         ->assertSee('href="'.e(route('orders.create')).'"', false);
     $orders->assertOk()->assertSee('href="'.e(route('dashboard')).'"', false);
     expect($dashboard->getContent())->toMatch('/href="[^"]*\/dashboard"\s+aria-current="page"/');

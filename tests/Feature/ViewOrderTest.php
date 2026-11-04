@@ -203,8 +203,9 @@ test('the details page is read only and ignores query parameters that attempt to
     $response = $this->get(route('orders.show', ['order' => $orderId, 'status' => 'Completed', 'total_amount_in_cents' => 1, 'customer_id' => 999]));
 
     $response->assertOk()->assertSee('In production')->assertSee('29.20')
-        ->assertDontSee('<form', false)->assertDontSee('<input', false)->assertDontSee('<select', false)
         ->assertDontSee('Edit order')->assertDontSee('Delete order');
+    preg_match('/<main[^>]*>(.*?)<\/main>/s', $response->getContent(), $mainContent);
+    expect($mainContent[1])->not->toContain('<form', '<input', '<select');
     $this->assertDatabaseCount('orders', 1);
     $this->assertDatabaseCount('customers', 1);
     $this->assertDatabaseCount('order_items', 2);

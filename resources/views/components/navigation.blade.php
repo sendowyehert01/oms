@@ -1,10 +1,11 @@
 <header class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
     <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-x-8 gap-y-3 px-4 py-4 sm:px-6 lg:px-8">
-        <a href="{{ route('home') }}" class="flex items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-600">
+        <a href="{{ auth()->check() ? route('dashboard') : route('login') }}" class="flex items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-600">
             <span class="flex size-10 items-center justify-center rounded-xl bg-indigo-600 text-sm font-bold tracking-wide text-white" aria-hidden="true">OM</span>
             <span class="text-sm font-semibold sm:text-base">Order Management System</span>
         </a>
 
+        @auth
         <nav aria-label="Main navigation" class="flex flex-wrap gap-2">
             <a
                 href="{{ route('dashboard') }}"
@@ -34,6 +35,18 @@
                 </svg>
                 Orders
             </a>
+            @can('manage-staff')
+                <a href="{{ route('staff.index') }}" @if (request()->routeIs('staff.*')) aria-current="page" @endif class="inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-medium hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:hover:bg-slate-800">Staff accounts</a>
+            @endcan
         </nav>
+        <div class="flex flex-wrap items-center gap-3 text-sm md:ml-auto">
+            <span class="max-w-48 truncate font-medium">{{ auth()->user()->name }}</span>
+            <a href="{{ route('account.password') }}" class="inline-flex min-h-11 items-center rounded-lg px-3 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-indigo-600 dark:hover:bg-slate-800">Change password</a>
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="min-h-11 rounded-lg border border-slate-300 px-4 font-semibold hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-indigo-600 dark:border-slate-700 dark:hover:bg-slate-800">Log out</button>
+            </form>
+        </div>
+        @endauth
     </div>
 </header>

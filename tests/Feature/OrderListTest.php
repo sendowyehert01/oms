@@ -2,13 +2,10 @@
 
 use Illuminate\Pagination\LengthAwarePaginator;
 
-test('the home navigation links to the orders page', function (): void {
+test('the legacy home entry redirects to the base login URL', function (): void {
     $response = $this->get(route('home'));
 
-    $response->assertOk()
-        ->assertSee('Main navigation')
-        ->assertSee('Order Management System')
-        ->assertSee('href="'.route('orders.index').'"', false);
+    $response->assertRedirect(route('login'));
 });
 
 test('orders display their number customer date status and formatted total without application tables', function (): void {
