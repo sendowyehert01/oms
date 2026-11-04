@@ -44,6 +44,9 @@
         </section>
     </div>
 
+    @if ($workflowOrder !== null)
+        <x-order-schedule-panel :order="$workflowOrder" />
+    @endif
     <section aria-labelledby="items-heading" class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <h2 id="items-heading" class="border-b border-slate-200 p-4 text-lg font-semibold sm:p-6 dark:border-slate-800">Order items</h2>
         <div class="overflow-x-auto" role="region" aria-label="Order items table" tabindex="0">

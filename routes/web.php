@@ -4,9 +4,11 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderCreationController;
 use App\Http\Controllers\OrderItemProductionController;
+use App\Http\Controllers\OrderScheduleController;
 use App\Http\Controllers\OrderStatusController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentReceiptController;
+use App\Http\Controllers\ProductionBoardController;
 use App\Http\Controllers\StaffController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +19,8 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/staff', [StaffController::class, 'index'])->middleware('can:manage-staff')->name('staff.index');
     Route::post('/staff', [StaffController::class, 'store'])->middleware('can:manage-staff')->name('staff.store');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/production', ProductionBoardController::class)->name('production.index');
+    Route::post('/orders/{order}/schedule', OrderScheduleController::class)->whereNumber('order')->name('orders.schedule.update');
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/create', [OrderCreationController::class, 'create'])->name('orders.create');

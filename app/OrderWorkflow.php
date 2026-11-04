@@ -42,11 +42,11 @@ class OrderWorkflow
      * @param  array<string, mixed>  $data
      * @param  Closure(Order, User, array<string, mixed>): void  $operation
      */
-    public function perform(Order $order, User $actor, array $data, Closure $operation): Order
+    public function perform(Order $order, User $actor, array $data, Closure $operation, string $ability = 'updateStatus'): Order
     {
-        return DB::transaction(function () use ($order, $actor, $data, $operation): Order {
+        return DB::transaction(function () use ($order, $actor, $data, $operation, $ability): Order {
             $locked = Order::query()->visibleTo($actor)->whereKey($order->id)->lockForUpdate()->firstOrFail();
-            Gate::forUser($actor)->authorize('updateStatus', $locked);
+            Gate::forUser($actor)->authorize($ability, $locked);
             $previous = OrderStatusHistory::query()->where('submission_key', $data['submission_key'])->first();
             if ($previous !== null) {
                 if ($previous->order_id !== $locked->id || $previous->actor_id !== $actor->id || $previous->request_hash !== $this->fingerprint($data)) {
@@ -67,7 +67,7 @@ class OrderWorkflow
     }
 
     /** @param array<string, mixed> $data */
-    public function record(Order $order, User $actor, array $data, string $eventType, ?string $from, string $to, ?OrderItem $item = null, bool $additional = false): OrderStatusHistory
+    public function record(Order $order, User $actor, array $data, string $eventType, ?string $from, string $to, ?OrderItem $item = null, bool $additional = false, ?string $eventNotes = null): OrderStatusHistory
     {
         return $order->statusHistory()->create([
             'actor_id' => $actor->id,
@@ -77,7 +77,7 @@ class OrderWorkflow
             'event_type' => $eventType,
             'from_status' => $from,
             'to_status' => $to,
-            'notes' => $data['notes'] ?? null,
+            'notes' => $eventNotes ?? $data['notes'] ?? null,
             'submission_key' => $additional ? (string) Str::uuid() : $data['submission_key'],
             'request_hash' => $this->fingerprint($data),
         ]);

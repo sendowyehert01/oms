@@ -164,6 +164,7 @@ class OrderEntries
                 ]);
 
                 $order->creator()->associate($user);
+                $order->target_delivery_date = $data['target_delivery_date'] ?? null;
                 $order->save();
 
                 $order->items()->createMany(array_map(fn (array $item): array => [
