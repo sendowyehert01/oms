@@ -35,6 +35,13 @@ class OrderPolicy
         return $this->view($user, $order);
     }
 
+    public function updateStatus(User $user, Order $order): Response
+    {
+        return $this->view($user, $order)->allowed()
+            ? Response::deny('Only administrators can update production progress.')
+            : Response::denyAsNotFound();
+    }
+
     public function delete(User $user, Order $order): Response
     {
         return $this->view($user, $order)->allowed() ? Response::deny() : Response::denyAsNotFound();

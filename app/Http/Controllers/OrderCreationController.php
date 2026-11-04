@@ -6,7 +6,6 @@ use App\Http\Requests\SelectOrderCustomerRequest;
 use App\Models\Customer;
 use App\Models\Order;
 use App\OrderDrafts;
-use App\OrderEntries;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
@@ -112,9 +111,8 @@ class OrderCreationController extends Controller
         }
 
         $orderInput = $request->old('submission_key') === $submissionKey ? $request->session()->getOldInput() : $draft['order'];
-        $statuses = OrderEntries::STATUSES;
 
-        return view('orders.create', compact('submissionKey', 'customer', 'orderInput', 'statuses'));
+        return view('orders.create', compact('submissionKey', 'customer', 'orderInput'));
     }
 
     public function back(Request $request, OrderDrafts $drafts): RedirectResponse

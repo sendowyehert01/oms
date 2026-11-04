@@ -11,6 +11,7 @@
         <p role="status" class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{{ session('success') }}</p>
     @endif
 
+    <x-form-errors />
     <div class="grid gap-6 lg:grid-cols-2">
         <section aria-labelledby="order-heading" class="oms-surface rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
             <h2 id="order-heading" class="mb-5 text-lg font-semibold">Order information</h2>
@@ -91,5 +92,8 @@
     </section>
     @if ($paymentSummary !== null)
         <x-payment-summary :summary="$paymentSummary" :record-url="route('orders.payments.create', ['order' => $order['id']])" />
+    @endif
+    @if ($workflowOrder !== null)
+        <x-order-workflow-panel :order="$workflowOrder" :history="$statusHistory" />
     @endif
 </x-app-layout>

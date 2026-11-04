@@ -97,9 +97,9 @@ class OrderController extends Controller
 
         try {
             $details = $orderId === false ? null : ($isSampleData ? $sampleOrders->find($orderId, $request->session()->get('orders.deleted_samples', [])) : $orderEntries->find($orderId, $request->user()));
-            $paymentSummary = $details !== null && ! $isSampleData
-                ? $paymentEntries->summary(Order::query()->findOrFail($orderId))
-                : null;
+            $workflowOrder = $details !== null && ! $isSampleData ? Order::query()->findOrFail($orderId) : null;
+            $paymentSummary = $workflowOrder !== null ? $paymentEntries->summary($workflowOrder) : null;
+            $statusHistory = $workflowOrder?->statusHistory()->paginate(10, ['*'], 'history_page')->withQueryString();
         } catch (QueryException $exception) {
             report($exception);
 
@@ -120,7 +120,7 @@ class OrderController extends Controller
             ], 404);
         }
 
-        return view('orders.show', ['order' => $details, 'isSampleData' => $isSampleData, 'returnToOrdersUrl' => $returnToOrdersUrl, 'paymentSummary' => $paymentSummary]);
+        return view('orders.show', ['order' => $details, 'isSampleData' => $isSampleData, 'returnToOrdersUrl' => $returnToOrdersUrl, 'paymentSummary' => $paymentSummary, 'workflowOrder' => $workflowOrder, 'statusHistory' => $statusHistory]);
     }
 
     public function destroy(Request $request, string $order, OrderEntries $orderEntries, SampleOrders $sampleOrders): JsonResponse|RedirectResponse
