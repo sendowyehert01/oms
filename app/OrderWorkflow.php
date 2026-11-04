@@ -21,24 +21,15 @@ class OrderWorkflow
             $previous = $locked->status;
             switch ($data['action']) {
                 case 'start_production':
-                    $this->requireStatus($locked, OrderStatus::Pending);
-                    if (! $locked->items()->exists()) {
-                        throw ValidationException::withMessages(['action' => 'Add order items before starting production.']);
-                    }
-                    $locked->status = OrderStatus::InProduction->value;
-                    break;
                 case 'mark_ready':
-                    $this->requireStatus($locked, OrderStatus::InProduction);
-                    if (! $locked->items()->exists() || ! ($data['quality_checked'] ?? false)) {
-                        throw ValidationException::withMessages(['quality_checked' => 'Confirm that every item is finished and quality checked.']);
-                    }
-                    $locked->status = OrderStatus::ReadyForDelivery->value;
-                    break;
+                    throw ValidationException::withMessages(['action' => 'Use the per-item availability and production controls to update this order.']);
                 case 'reopen':
                     if ($locked->status === OrderStatus::Pending->value || blank($data['notes'] ?? null)) {
                         throw ValidationException::withMessages(['notes' => 'Reopening requires a changed status and a correction reason.']);
                     }
                     $locked->status = OrderStatus::Pending->value;
+                    $this->reopenItems($locked, $actor, $data);
+                    $locked->item_tracking_started_at = null;
                     break;
                 default:
                     throw ValidationException::withMessages(['action' => 'This status action is unavailable.']);
@@ -92,10 +83,28 @@ class OrderWorkflow
         ]);
     }
 
-    private function requireStatus(Order $order, OrderStatus $expected): void
+    /** @param array<string, mixed> $data */
+    private function reopenItems(Order $order, User $actor, array $data): void
     {
-        if ($order->status !== $expected->value) {
-            throw ValidationException::withMessages(['action' => 'This action does not match the current order status.']);
+        foreach ($order->items()->orderBy('id')->lockForUpdate()->get() as $item) {
+            if ($item->stock_availability !== ItemAvailability::NotChecked) {
+                $this->record($order, $actor, $data, 'availability_reset', $item->stock_availability->value, ItemAvailability::NotChecked->value, $item, additional: true);
+            }
+            if ($item->production_status !== ItemProductionStatus::Pending) {
+                $this->record($order, $actor, $data, 'item_reopened', $item->production_status->value, ItemProductionStatus::Pending->value, $item, additional: true);
+            }
+            $item->stock_availability = ItemAvailability::NotChecked;
+            $item->production_status = ItemProductionStatus::Pending;
+            $item->availability_notes = null;
+            $item->availability_checked_by = null;
+            $item->availability_checked_by_name = null;
+            $item->availability_checked_at = null;
+            $item->readiness_source = null;
+            $item->ready_check_required = false;
+            $item->ready_confirmed_by = null;
+            $item->ready_confirmed_by_name = null;
+            $item->ready_confirmed_at = null;
+            $item->save();
         }
     }
 

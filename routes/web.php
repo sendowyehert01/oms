@@ -3,6 +3,7 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderCreationController;
+use App\Http\Controllers\OrderItemProductionController;
 use App\Http\Controllers\OrderStatusController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentReceiptController;
@@ -26,6 +27,7 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/orders/create/cancel', [OrderCreationController::class, 'cancel'])->name('orders.creation.cancel');
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
     Route::post('/orders/{order}/status', OrderStatusController::class)->whereNumber('order')->name('orders.status.update');
+    Route::post('/orders/{order}/items/{item}/production', OrderItemProductionController::class)->scopeBindings()->whereNumber(['order', 'item'])->name('orders.items.production.update');
     Route::get('/orders/{order}/payments/create', [PaymentController::class, 'create'])->whereNumber('order')->name('orders.payments.create');
     Route::post('/orders/{order}/payments', [PaymentController::class, 'store'])->whereNumber('order')->name('orders.payments.store');
     Route::get('/orders/{order}/payments/{payment}/receipt', [PaymentReceiptController::class, 'show'])->whereNumber(['order', 'payment'])->name('orders.payments.receipt');

@@ -1,5 +1,6 @@
 <x-app-layout title="Order Details">
     <x-page-heading title="Order details" eyebrow="Order management" :description="$order['number']">
+        @unless ($isSampleData)<a href="#production-heading" class="inline-flex min-h-11 items-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700">Production</a>@endunless
         <a href="{{ $returnToOrdersUrl }}" class="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:border-slate-700 dark:hover:bg-slate-800">Back to Orders</a>
     </x-page-heading>
 

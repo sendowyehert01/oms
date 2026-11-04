@@ -2,9 +2,8 @@
 
 use App\Models\Customer;
 use App\Models\Order;
-use Illuminate\Database\Events\QueryExecuted;
+use App\Models\OrderItem;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -267,10 +266,8 @@ test('customer names and retained item names are escaped in the list and form', 
 
 test('an item save failure rolls back the new customer order and items together', function (): void {
     Exceptions::fake();
-    DB::listen(function (QueryExecuted $query): void {
-        if (str_starts_with($query->sql, 'insert') && str_contains($query->sql, 'order_items')) {
-            throw new RuntimeException('Unable to save order items.');
-        }
+    OrderItem::creating(function (OrderItem $item): never {
+        throw new RuntimeException('Unable to save order items.');
     });
 
     $response = $this->post(route('orders.store'), validCreateOrderData());
