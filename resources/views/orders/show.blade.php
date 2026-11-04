@@ -92,6 +92,7 @@
         </div>
     </section>
     @if ($paymentSummary !== null)
+        <x-payment-due-date-panel :order="$workflowOrder" :summary="$paymentSummary" />
         <x-payment-summary :summary="$paymentSummary" :record-url="route('orders.payments.create', ['order' => $order['id']])" />
     @endif
     @if ($workflowOrder !== null)

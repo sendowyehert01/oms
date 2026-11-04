@@ -17,6 +17,7 @@
         </section>
     @endif
 
+    <x-outstanding-balances-panel :data="$outstanding" :user="$user" />
     <dl aria-label="Client and order totals" class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         @foreach ([
             'Total clients' => $metrics['clients']['total'],

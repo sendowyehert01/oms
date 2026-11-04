@@ -35,6 +35,11 @@ class OrderPolicy
         return $this->view($user, $order);
     }
 
+    public function setPaymentDueDate(User $user, Order $order): Response
+    {
+        return $this->view($user, $order)->allowed() ? Response::deny() : Response::denyAsNotFound();
+    }
+
     public function updateStatus(User $user, Order $order): Response
     {
         return $this->view($user, $order)->allowed()

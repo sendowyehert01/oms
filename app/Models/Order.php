@@ -74,6 +74,7 @@ class Order extends Model
             'workflow_version' => 'integer',
             'item_tracking_started_at' => 'datetime',
             'order_date' => 'date:Y-m-d',
+            'payment_due_date' => 'date:Y-m-d',
             'due_date' => 'date:Y-m-d',
         ];
     }

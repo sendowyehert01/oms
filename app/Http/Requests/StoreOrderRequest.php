@@ -65,6 +65,7 @@ class StoreOrderRequest extends FormRequest
             'contact_number' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:30'],
             'order_date' => ['required', 'date_format:Y-m-d'],
             'terms_of_payment' => ['required', 'string', 'max:255'],
+            'payment_due_date' => [Rule::prohibitedIf(! $this->user()->isAdmin()), 'nullable', 'date_format:Y-m-d', 'after_or_equal:order_date'],
             'status' => ['required', Rule::in([OrderStatus::Pending->value])],
             'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*' => ['required', 'array:product_name,quantity,unit,unit_price,material_color,size,print_design_colors,sealing,sealing_other,puncher,puncher_other,customization_notes'],

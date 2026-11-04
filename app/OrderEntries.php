@@ -164,6 +164,10 @@ class OrderEntries
                 ]);
 
                 $order->creator()->associate($user);
+                if (filled($data['payment_due_date'] ?? null)) {
+                    Gate::forUser($user)->authorize('setPaymentDueDate', $order);
+                }
+                $order->payment_due_date = $data['payment_due_date'] ?? null;
                 $order->save();
 
                 $order->items()->createMany(array_map(fn (array $item): array => [

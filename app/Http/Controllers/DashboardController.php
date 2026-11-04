@@ -6,6 +6,7 @@ use App\DailyPerformance;
 use App\DashboardMetrics;
 use App\Models\Customer;
 use App\Models\Order;
+use App\OutstandingBalances;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -14,13 +15,14 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, DashboardMetrics $dashboardMetrics, DailyPerformance $dailyPerformance): View|Response
+    public function __invoke(Request $request, DashboardMetrics $dashboardMetrics, DailyPerformance $dailyPerformance, OutstandingBalances $balances): View|Response
     {
         $user = $request->user();
 
         try {
             $metrics = $dashboardMetrics->summary($user);
             $performance = $dailyPerformance->summary($user);
+            $outstanding = $balances->summary($user, perPage: 5);
             $clients = Customer::query()
                 ->when(! $user->isAdmin(), fn (Builder $query): Builder => $query->createdBy($user))
                 ->select('id', 'company_name', 'contact_person', 'created_at')->withCount('orders')
@@ -40,6 +42,6 @@ class DashboardController extends Controller
             ], 503);
         }
 
-        return view('dashboard', compact('metrics', 'user', 'performance', 'clients', 'orders'));
+        return view('dashboard', compact('metrics', 'user', 'performance', 'clients', 'orders', 'outstanding'));
     }
 }

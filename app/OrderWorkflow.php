@@ -67,7 +67,7 @@ class OrderWorkflow
     }
 
     /** @param array<string, mixed> $data */
-    public function record(Order $order, User $actor, array $data, string $eventType, ?string $from, string $to, ?OrderItem $item = null, bool $additional = false): OrderStatusHistory
+    public function record(Order $order, User $actor, array $data, string $eventType, ?string $from, string $to, ?OrderItem $item = null, bool $additional = false, ?string $eventNotes = null): OrderStatusHistory
     {
         return $order->statusHistory()->create([
             'actor_id' => $actor->id,
@@ -77,7 +77,7 @@ class OrderWorkflow
             'event_type' => $eventType,
             'from_status' => $from,
             'to_status' => $to,
-            'notes' => $data['notes'] ?? null,
+            'notes' => $eventNotes ?? $data['notes'] ?? null,
             'submission_key' => $additional ? (string) Str::uuid() : $data['submission_key'],
             'request_hash' => $this->fingerprint($data),
         ]);

@@ -162,9 +162,12 @@ test('dashboard query count and loaded records remain bounded as data grows', fu
     } finally {
         DB::disableQueryLog();
     }
-    expect($queries)->toHaveCount(10);
+    expect($queries)->toHaveCount(16);
     expect($response['orders']->count())->toBe(min(5, $count));
-    expect(implode(' ', array_column($queries, 'query')))->not->toContain('order_items', 'payments');
+    expect($response['outstanding']['orders']->count())->toBeLessThanOrEqual(5);
+    foreach ($response['outstanding']['orders'] as $order) {
+        expect($order->relationLoaded('items'))->toBeFalse()->and($order->relationLoaded('payments'))->toBeFalse();
+    }
 })->with([1, 50]);
 
 test('dashboard escapes client account and order status text', function (): void {
