@@ -12,7 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
-class OrderPaymentDueDateController extends Controller
+class PaymentDueDateController extends Controller
 {
     public function __invoke(UpdatePaymentDueDateRequest $request, Order $order, OrderWorkflow $workflow): RedirectResponse
     {
