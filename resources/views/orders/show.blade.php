@@ -1,15 +1,10 @@
 <x-app-layout title="Order Details">
-    <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-            <p class="mb-2 text-xs font-semibold tracking-widest text-indigo-600 uppercase dark:text-indigo-400">Order management</p>
-            <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Order details</h1>
-            <p class="mt-3 font-medium text-slate-600 dark:text-slate-400">{{ $order['number'] }}</p>
-        </div>
-        <a href="{{ $returnToOrdersUrl }}" class="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:border-slate-700 dark:hover:bg-slate-800">Back to Orders</a>
-    </div>
+    <x-page-heading title="Order details" eyebrow="Order management" :description="$order['number']">
+        <a href="{{ $returnToOrdersUrl }}" class="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:border-slate-700 dark:hover:bg-slate-800">Back to Orders</a>
+    </x-page-heading>
 
     @if ($isSampleData)
-        <p class="mb-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200">Sample order. Item details are illustrative.</p>
+        <p class="mb-6 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-800 dark:border-brand-800 dark:bg-brand-950 dark:text-brand-200">Sample order. Item details are illustrative.</p>
     @endif
 
     @if (session('success'))
@@ -17,7 +12,7 @@
     @endif
 
     <div class="grid gap-6 lg:grid-cols-2">
-        <section aria-labelledby="order-heading" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
+        <section aria-labelledby="order-heading" class="oms-surface rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
             <h2 id="order-heading" class="mb-5 text-lg font-semibold">Order information</h2>
             <dl class="grid gap-5 sm:grid-cols-2">
                 <div><dt class="text-sm text-slate-500 dark:text-slate-400">Order number</dt><dd class="mt-1 font-semibold [overflow-wrap:anywhere]">{{ $order['number'] }}</dd></div>
@@ -31,7 +26,7 @@
             </dl>
         </section>
 
-        <section aria-labelledby="customer-heading" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
+        <section aria-labelledby="customer-heading" class="oms-surface rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
             <h2 id="customer-heading" class="mb-5 text-lg font-semibold">Customer information</h2>
             <dl class="grid gap-5 sm:grid-cols-2">
                 <div><dt class="text-sm text-slate-500 dark:text-slate-400">Customer name</dt><dd class="mt-1 font-semibold [overflow-wrap:anywhere]">{{ $order['customer']['name'] }}</dd></div>

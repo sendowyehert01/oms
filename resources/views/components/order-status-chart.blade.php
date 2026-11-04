@@ -30,11 +30,11 @@
             role="img"
             aria-label="Order status pie chart for {{ number_format($total) }} orders"
             aria-describedby="order-status-legend"
-            class="mx-auto aspect-square w-full max-w-72 rounded-full border border-slate-200 dark:border-slate-700"
+            class="mx-auto aspect-square w-full max-w-52 rounded-full border border-slate-200 shadow-inner dark:border-slate-700"
             style="background: conic-gradient({{ implode(', ', $stops) }})"
         ></div>
     @else
-        <div class="mx-auto flex aspect-square w-full max-w-72 items-center justify-center rounded-full bg-slate-100 p-8 text-center dark:bg-slate-800">
+        <div class="mx-auto flex aspect-square w-full max-w-52 items-center justify-center rounded-full border border-dashed border-slate-300 bg-slate-50 p-8 text-center dark:border-slate-700 dark:bg-slate-800">
             <p class="text-sm text-slate-600 dark:text-slate-400">No orders yet. Create an order to see its status here.</p>
         </div>
     @endif
