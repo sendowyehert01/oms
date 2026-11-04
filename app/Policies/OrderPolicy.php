@@ -46,4 +46,11 @@ class OrderPolicy
     {
         return $this->view($user, $order)->allowed() ? Response::deny() : Response::denyAsNotFound();
     }
+
+    public function scheduleDelivery(User $user, Order $order): Response
+    {
+        return $order->created_by === $user->id
+            ? Response::allow()
+            : ($this->view($user, $order)->allowed() ? Response::deny() : Response::denyAsNotFound());
+    }
 }

@@ -163,6 +163,7 @@ class OrderEntries
                     'submission_key' => $data['submission_key'],
                 ]);
 
+                $order->target_delivery_date = $data['target_delivery_date'] ?? null;
                 $order->creator()->associate($user);
                 $order->save();
 

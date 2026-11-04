@@ -33,6 +33,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" stroke-linejoin="round" /></svg>
                 Dashboard
             </a>
+            <a href="{{ route('production.index') }}" @if (request()->routeIs('production.*')) aria-current="page" @endif class="workspace-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 4h18v16H3zM9 4v16m6-16v16" /></svg>
+                Production
+            </a>
             <a href="{{ route('orders.index') }}" @if (request()->routeIs('orders.*')) aria-current="page" @endif class="workspace-link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m3 7 9-4 9 4v10l-9 4-9-4V7Zm0 0 9 4 9-4m-9 4v10" stroke-linejoin="round" /></svg>
                 Orders

@@ -64,6 +64,7 @@ class StoreOrderRequest extends FormRequest
             'address' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:2000'],
             'contact_number' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:30'],
             'order_date' => ['required', 'date_format:Y-m-d'],
+            'target_delivery_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:order_date'],
             'terms_of_payment' => ['required', 'string', 'max:255'],
             'status' => ['required', Rule::in([OrderStatus::Pending->value])],
             'items' => ['required', 'array', 'min:1', 'max:100'],

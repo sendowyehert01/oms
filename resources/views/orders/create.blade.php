@@ -21,6 +21,7 @@
             <h2 id="order-heading" class="mb-5 text-lg font-semibold">Order information</h2>
             <div class="grid gap-4 sm:grid-cols-3">
                 <x-form-input name="order_date" label="Order date" type="date" :value="$orderInput['order_date'] ?? now()->toDateString()" />
+                <x-form-input name="target_delivery_date" label="Target delivery date" type="date" :required="false" :value="$orderInput['target_delivery_date'] ?? ''" />
                 <x-form-input name="terms_of_payment" label="Terms of Payment" :value="$orderInput['terms_of_payment'] ?? ''" maxlength="255" placeholder="e.g. Cash on delivery or Net 30" />
                 <div>
                     <p class="mb-2 text-sm font-medium">Initial order status</p>
