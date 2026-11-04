@@ -11,6 +11,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\NestedRules;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 
 class StoreOrderRequest extends FormRequest
 {
@@ -24,7 +25,7 @@ class StoreOrderRequest extends FormRequest
             $drafts->rememberOrder($this->session(), $submissionKey, $this->only(['order_date', 'terms_of_payment', 'status', 'items']));
             $this->merge(['customer_id' => null, ...$draft['customer']]);
         } elseif (is_string($submissionKey) && Str::isUuid($submissionKey) && $this->missing('customer_id') && $this->missing('customer_name')) {
-            $customerId = Order::query()->where('submission_key', $submissionKey)->value('customer_id');
+            $customerId = Order::query()->createdBy($this->user())->visibleTo($this->user())->where('submission_key', $submissionKey)->value('customer_id');
 
             if ($customerId !== null) {
                 $this->merge(['customer_id' => $customerId]);
@@ -46,7 +47,7 @@ class StoreOrderRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', Order::class);
     }
 
     /**
@@ -58,7 +59,7 @@ class StoreOrderRequest extends FormRequest
     {
         return [
             'submission_key' => ['required', 'uuid'],
-            'customer_id' => ['nullable', 'integer', Rule::exists(Customer::class, 'id')],
+            'customer_id' => ['nullable', 'integer', Rule::exists(Customer::class, 'id')->when(! $this->user()->isAdmin(), fn (Exists $rule): Exists => $rule->where('created_by', $this->user()->id))],
             'customer_name' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:255'],
             'contact_person' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:255'],
             'address' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:2000'],

@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\PaymentReceiptStorage;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
@@ -13,6 +14,7 @@ class PaymentReceiptController extends Controller
 {
     public function show(Order $order, Payment $payment, PaymentReceiptStorage $receiptStorage): StreamedResponse|Response
     {
+        Gate::authorize('view', $order);
         abort_unless($payment->order_id === $order->id && $payment->receipt_path !== null, 404);
 
         try {

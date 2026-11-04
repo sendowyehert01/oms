@@ -4,16 +4,18 @@ namespace App;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 
 class DashboardMetrics
 {
     /**
      * @return array{clients: array{total: int, with_orders: int, without_orders: int}, orders: int, statuses: list<array{label: string, count: int}>}
      */
-    public function summary(): array
+    public function summary(User $user): array
     {
-        $clientsWithOrders = Customer::query()->has('orders')->count();
-        $clientsWithoutOrders = Customer::query()->doesntHave('orders')->count();
+        $clientsWithOrders = Customer::query()->visibleTo($user)->has('orders')->count();
+        $clientsWithoutOrders = Customer::query()->visibleTo($user)->doesntHave('orders')->count();
 
         $statusCases = [];
         $statusBindings = [];
@@ -26,6 +28,7 @@ class DashboardMetrics
 
         $statusBindings[] = 'Other status';
         $counts = Order::query()
+            ->when(! $user->isAdmin(), fn (Builder $query): Builder => $query->createdBy($user))
             ->selectRaw('CASE '.implode(' ', $statusCases).' ELSE ? END AS dashboard_status', $statusBindings)
             ->selectRaw('COUNT(*) AS order_count')
             ->groupBy('dashboard_status')

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -30,5 +31,17 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === UserRole::Admin;
+    }
+
+    /** @return HasMany<Customer, $this> */
+    public function createdClients(): HasMany
+    {
+        return $this->hasMany(Customer::class, 'created_by');
+    }
+
+    /** @return HasMany<Order, $this> */
+    public function createdOrders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'created_by');
     }
 }

@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\PaymentReceiptStorage;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
 
@@ -16,6 +17,8 @@ class StorePaymentRequest extends FormRequest
      */
     public function authorize(): bool
     {
+        Gate::authorize('recordPayment', $this->route('order'));
+
         return true;
     }
 

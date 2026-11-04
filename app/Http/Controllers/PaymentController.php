@@ -10,6 +10,7 @@ use App\PaymentEntries;
 use App\PaymentReceiptStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -19,6 +20,7 @@ class PaymentController extends Controller
 {
     public function create(Request $request, Order $order, PaymentEntries $paymentEntries, OrderEntries $orderEntries, PaymentReceiptStorage $receiptStorage): View
     {
+        Gate::authorize('recordPayment', $order);
         $order->load('customer');
         $summary = $paymentEntries->summary($order);
         $orderNumber = $orderEntries->number($order->id, $order->order_date->toDateString());

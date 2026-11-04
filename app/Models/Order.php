@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -33,11 +35,34 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** @param Builder<Order> $query */
+    #[Scope]
+    protected function createdBy(Builder $query, User $user): void
+    {
+        $query->where('orders.created_by', $user->id);
+    }
+
+    /** @param Builder<Order> $query */
+    #[Scope]
+    protected function visibleTo(Builder $query, User $user): void
+    {
+        if (! $user->isAdmin()) {
+            $query->whereHas('customer', fn (Builder $query): Builder => $query->createdBy($user));
+        }
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
             'customer_id' => 'integer',
+            'created_by' => 'integer',
             'order_date' => 'date:Y-m-d',
             'due_date' => 'date:Y-m-d',
         ];

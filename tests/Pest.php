@@ -1,13 +1,15 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->in('Feature');
 
 pest()->beforeEach(function (): void {
-    $this->actingAs(User::factory()->make(['id' => 1]));
+    $user = Schema::hasTable('users') ? User::factory()->admin()->create() : User::factory()->admin()->make(['id' => 1]);
+    $this->actingAs($user);
 })->in(
     'Feature/CreateOrderTest.php',
     'Feature/CustomerOrderFlowTest.php',

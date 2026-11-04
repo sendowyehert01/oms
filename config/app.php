@@ -66,6 +66,7 @@ return [
     */
 
     'timezone' => 'UTC',
+    'reporting_timezone' => env('OMS_REPORTING_TIMEZONE', 'Asia/Manila'),
 
     /*
     |--------------------------------------------------------------------------

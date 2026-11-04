@@ -5,9 +5,11 @@ namespace App;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 
 class OrderEntries
@@ -17,13 +19,16 @@ class OrderEntries
     /**
      * @return Collection<int, array{id: int, number: string, customer_name: string, order_date: string, status: string, total_amount_in_cents: int}>
      */
-    public function all(): Collection
+    public function all(User $user): Collection
     {
+        Gate::forUser($user)->authorize('viewAny', Order::class);
+
         if (! Schema::hasTable('orders')) {
             return collect();
         }
 
         return Order::query()
+            ->visibleTo($user)
             ->select('id', 'customer_id', 'order_date', 'status')
             ->with(['customer:id,company_name', 'items:id,order_id,quantity,unit,unit_price'])
             ->orderByDesc('id')
@@ -41,17 +46,19 @@ class OrderEntries
     /**
      * @return array{id: int, number: string, customer_name: string, order_date: string, terms_of_payment: ?string, due_date: ?string, status: string, total_amount_in_cents: int, customer: array{id: int, name: string, contact_person: string, address: string, contact_number: string}, items: array<int, array{product_name: string, size: ?string, customization_notes: ?string, material_color: ?string, print_design_colors: ?string, sealing: ?string, sealing_other: ?string, puncher: ?string, puncher_other: ?string, quantity: string, measurement: string, unit_price_in_cents: int, subtotal_in_cents: int}>}|null
      */
-    public function find(int $orderId): ?array
+    public function find(int $orderId, User $user): ?array
     {
         if (! Schema::hasTable('orders')) {
             return null;
         }
 
-        $order = Order::query()->with(['customer', 'items'])->find($orderId);
+        $order = Order::query()->visibleTo($user)->with(['customer', 'items'])->find($orderId);
 
         if ($order === null) {
             return null;
         }
+
+        Gate::forUser($user)->authorize('view', $order);
 
         $items = $order->items->map(fn (OrderItem $item): array => [
             'product_name' => $item->product_name,
@@ -89,22 +96,24 @@ class OrderEntries
         ];
     }
 
-    public function hasCustomers(): bool
+    public function hasCustomers(User $user): bool
     {
-        return Schema::hasTable('customers') && Customer::query()->exists();
+        return Schema::hasTable('customers') && Customer::query()->visibleTo($user)->exists();
     }
 
     /**
      * @return array{status: 'deleted'|'missing'|'protected', number?: string}
      */
-    public function delete(int $orderId): array
+    public function delete(int $orderId, User $user): array
     {
-        return DB::transaction(function () use ($orderId): array {
-            $order = Order::query()->whereKey($orderId)->lockForUpdate()->first(['id', 'order_date']);
+        return DB::transaction(function () use ($orderId, $user): array {
+            $order = Order::query()->visibleTo($user)->whereKey($orderId)->lockForUpdate()->first();
 
             if ($order === null) {
                 return ['status' => 'missing'];
             }
+
+            Gate::forUser($user)->authorize('delete', $order);
 
             if ($order->payments()->exists()) {
                 return ['status' => 'protected'];
@@ -119,29 +128,41 @@ class OrderEntries
     /**
      * @param  array{submission_key: string, customer_id?: int|string|null, customer_name?: string, contact_person?: string, address?: string, contact_number?: string, order_date: string, terms_of_payment: string, status: string, items: array<int, array{product_name: string, material_color?: ?string, size?: ?string, print_design_colors?: ?string, sealing?: ?string, sealing_other?: ?string, puncher?: ?string, puncher_other?: ?string, customization_notes?: ?string, quantity: int|float|string, unit?: string, unit_price: int|float|string}>}  $data
      */
-    public function create(array $data): int
+    public function create(array $data, User $user): int
     {
-        $existingOrderId = Order::query()->where('submission_key', $data['submission_key'])->value('id');
+        Gate::forUser($user)->authorize('create', Order::class);
+        $existingOrderId = $this->submittedOrderId($data['submission_key'], $user);
 
         if ($existingOrderId !== null) {
             return (int) $existingOrderId;
         }
 
         try {
-            return DB::transaction(function () use ($data): int {
-                $customer = isset($data['customer_id']) ? Customer::query()->findOrFail($data['customer_id']) : Customer::query()->create([
+            return DB::transaction(function () use ($data, $user): int {
+                $customer = isset($data['customer_id']) ? Customer::query()->visibleTo($user)->lockForUpdate()->findOrFail($data['customer_id']) : new Customer([
                     'company_name' => $data['customer_name'],
                     'contact_person' => $data['contact_person'],
                     'address' => $data['address'],
                     'contact_number' => $data['contact_number'],
                 ]);
 
-                $order = $customer->orders()->create([
+                if (! $customer->exists) {
+                    Gate::forUser($user)->authorize('create', Customer::class);
+                    $customer->creator()->associate($user);
+                    $customer->save();
+                }
+
+                Gate::forUser($user)->authorize('view', $customer);
+
+                $order = $customer->orders()->make([
                     'order_date' => $data['order_date'],
                     'terms_of_payment' => $data['terms_of_payment'],
                     'status' => $data['status'],
                     'submission_key' => $data['submission_key'],
                 ]);
+
+                $order->creator()->associate($user);
+                $order->save();
 
                 $order->items()->createMany(array_map(fn (array $item): array => [
                     'product_name' => $item['product_name'],
@@ -161,7 +182,7 @@ class OrderEntries
                 return $order->id;
             });
         } catch (UniqueConstraintViolationException $exception) {
-            $existingOrderId = Order::query()->where('submission_key', $data['submission_key'])->value('id');
+            $existingOrderId = $this->submittedOrderId($data['submission_key'], $user);
 
             if ($existingOrderId === null) {
                 throw $exception;
@@ -174,6 +195,20 @@ class OrderEntries
     public function number(int $orderId, string $orderDate): string
     {
         return sprintf('ORD-%s-%04d', substr($orderDate, 0, 4), $orderId);
+    }
+
+    private function submittedOrderId(string $submissionKey, User $user): ?int
+    {
+        $order = Order::query()->where('submission_key', $submissionKey)->first(['id', 'customer_id', 'created_by']);
+
+        if ($order === null) {
+            return null;
+        }
+
+        abort_unless($order->created_by === $user->id, 404);
+        Gate::forUser($user)->authorize('view', $order);
+
+        return $order->id;
     }
 
     private function priceInCents(string $price): int

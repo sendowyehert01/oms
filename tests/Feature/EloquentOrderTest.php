@@ -104,7 +104,7 @@ test('creating an order dispatches model events for its customer order and items
             ['product_name' => 'Plastic bags', 'quantity' => 2, 'unit_price' => '9.95'],
             ['product_name' => 'Zip bags', 'quantity' => 3, 'unit_price' => '3.10'],
         ],
-    ]);
+    ], auth()->user());
 
     Event::assertDispatched($customerCreated, 1);
     Event::assertDispatched($orderCreated, 1);

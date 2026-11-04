@@ -15,7 +15,11 @@
 
     <div data-order-success role="status" @if (! session('success')) hidden @endif class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{{ session('success') }}</div>
     <div data-order-error role="alert" @if (! session('error')) hidden @endif class="mb-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200">{{ session('error') }}</div>
-    <noscript><p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Enable JavaScript to confirm and delete orders.</p></noscript>
+    @if (auth()->user()->isAdmin())
+        <noscript><p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Enable JavaScript to confirm and delete orders.</p></noscript>
+    @else
+        <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Showing orders for clients you created, including orders added by an admin.</p>
+    @endif
 
     @fragment('orders-list')
     <div data-orders-list data-list-url="{{ route('orders.index', ['search' => $search, 'page' => $orders->currentPage()]) }}">
@@ -31,7 +35,9 @@
     </div>
     @endfragment
 
-    <x-confirmation-dialog id="delete-order-dialog" title="Delete order" confirm-label="Confirm Delete">
-        <p data-delete-message></p>
-    </x-confirmation-dialog>
+    @if (auth()->user()->isAdmin())
+        <x-confirmation-dialog id="delete-order-dialog" title="Delete order" confirm-label="Confirm Delete">
+            <p data-delete-message></p>
+        </x-confirmation-dialog>
+    @endif
 </x-app-layout>
