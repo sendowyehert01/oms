@@ -14,11 +14,11 @@
                     value="{{ is_scalar($item['quantity'] ?? 1) ? ($item['quantity'] ?? 1) : '' }}" required data-quantity
                     min="{{ $measurementUnit === 'kgs' ? '0.01' : '1' }}" max="{{ \App\Models\OrderItem::MAX_QUANTITY }}" step="{{ $measurementUnit === 'kgs' ? '0.01' : '1' }}"
                     @if ($errors->has('items.'.$index.'.quantity')) aria-invalid="true" aria-describedby="item-{{ $index }}-quantity-error" @endif
-                    class="min-h-11 min-w-0 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-2 focus:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950">
+                    class="oms-input min-h-12 min-w-0 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-brand-500 focus:outline-2 focus:outline-brand-500 dark:border-slate-700 dark:bg-slate-950">
                 <label for="item-{{ $index }}-unit" class="sr-only">Measurement unit</label>
                 <select id="item-{{ $index }}-unit" name="items[{{ $index }}][unit]" required data-measurement-unit
                     @if ($errors->has('items.'.$index.'.unit')) aria-invalid="true" aria-describedby="item-{{ $index }}-unit-error" @endif
-                    class="min-h-11 w-20 shrink-0 rounded-lg border border-slate-300 bg-white px-2 text-sm focus:outline-2 focus:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950">
+                    class="oms-input min-h-12 w-20 shrink-0 rounded-lg border border-slate-300 bg-white px-2 text-sm focus:outline-2 focus:outline-brand-500 dark:border-slate-700 dark:bg-slate-950">
                     @foreach (\App\Models\OrderItem::MEASUREMENT_UNITS as $unit)
                         <option value="{{ $unit }}" @selected($measurementUnit === $unit)>{{ $unit }}</option>
                     @endforeach

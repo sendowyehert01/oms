@@ -4,7 +4,7 @@
     <div class="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-6">
         <h2 id="payments-heading" class="text-lg font-semibold">Payment details</h2>
         @if ($recordUrl !== null && $summary['balance_in_cents'] > 0)
-            <a href="{{ $recordUrl }}" class="inline-flex min-h-11 items-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Record payment</a>
+            <a href="{{ $recordUrl }}" class="inline-flex min-h-11 items-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Record payment</a>
         @endif
     </div>
     <dl class="grid gap-5 px-4 pb-6 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
@@ -28,7 +28,7 @@
                             <td class="px-6 py-4 text-right whitespace-nowrap tabular-nums"><x-money :cents="$payment['amount_in_cents']" /></td>
                             <td class="max-w-64 px-6 py-4">
                                 @if ($payment['receipt_url'] !== null)
-                                    <a href="{{ $payment['receipt_url'] }}" class="inline-flex min-h-11 items-center rounded-lg text-indigo-700 underline underline-offset-4 [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-indigo-300">Download {{ $payment['receipt_name'] }}</a>
+                                    <a href="{{ $payment['receipt_url'] }}" class="inline-flex min-h-11 items-center rounded-lg text-brand-700 underline underline-offset-4 [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:text-brand-300">Download {{ $payment['receipt_name'] }}</a>
                                 @else
                                     <span class="text-slate-500 dark:text-slate-400">No receipt</span>
                                 @endif

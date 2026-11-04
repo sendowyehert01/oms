@@ -8,7 +8,7 @@
             @if ($paginator->onFirstPage())
                 <span aria-disabled="true" class="inline-flex min-h-11 items-center rounded-lg px-3 text-sm text-slate-400 dark:text-slate-600">Previous</span>
             @else
-                <a href="{{ $paginator->previousPageUrl() }}" rel="prev" class="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-slate-300 dark:hover:bg-slate-800">Previous</a>
+                <a href="{{ $paginator->previousPageUrl() }}" rel="prev" class="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:text-slate-300 dark:hover:bg-slate-800">Previous</a>
             @endif
 
             @foreach ($paginator->linkCollection() as $link)
@@ -17,16 +17,16 @@
                 @endif
 
                 @if ($link['active'])
-                    <span aria-current="page" aria-label="Page {{ $link['label'] }}" class="inline-flex size-11 items-center justify-center rounded-lg bg-indigo-600 text-sm font-semibold text-white">{{ $link['label'] }}</span>
+                    <span aria-current="page" aria-label="Page {{ $link['label'] }}" class="inline-flex size-11 items-center justify-center rounded-lg bg-brand-600 text-sm font-semibold text-white">{{ $link['label'] }}</span>
                 @elseif ($link['url'])
-                    <a href="{{ $link['url'] }}" aria-label="Go to page {{ $link['label'] }}" class="inline-flex size-11 items-center justify-center rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-slate-300 dark:hover:bg-slate-800">{{ $link['label'] }}</a>
+                    <a href="{{ $link['url'] }}" aria-label="Go to page {{ $link['label'] }}" class="inline-flex size-11 items-center justify-center rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:text-slate-300 dark:hover:bg-slate-800">{{ $link['label'] }}</a>
                 @else
                     <span aria-hidden="true" class="inline-flex size-11 items-center justify-center text-slate-400">{{ $link['label'] }}</span>
                 @endif
             @endforeach
 
             @if ($paginator->hasMorePages())
-                <a href="{{ $paginator->nextPageUrl() }}" rel="next" class="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-slate-300 dark:hover:bg-slate-800">Next</a>
+                <a href="{{ $paginator->nextPageUrl() }}" rel="next" class="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:text-slate-300 dark:hover:bg-slate-800">Next</a>
             @else
                 <span aria-disabled="true" class="inline-flex min-h-11 items-center rounded-lg px-3 text-sm text-slate-400 dark:text-slate-600">Next</span>
             @endif

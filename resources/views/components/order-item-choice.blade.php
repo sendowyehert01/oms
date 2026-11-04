@@ -10,7 +10,7 @@
     <label for="{{ $inputId }}" class="mb-2 block text-sm font-medium">{{ $label }}</label>
     <select id="{{ $inputId }}" name="items[{{ $index }}][{{ $field }}]" data-choice-select
         @if ($errors->has($errorKey)) aria-invalid="true" aria-describedby="{{ $inputId }}-error" @endif
-        class="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:outline-2 focus:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950">
+        class="oms-input min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:outline-2 focus:outline-brand-500 dark:border-slate-700 dark:bg-slate-950">
         <option value="">Select {{ strtolower($label) }} (optional)</option>
         @foreach ($options as $option)
             <option value="{{ $option }}" @selected($selectedValue === $option)>{{ $option }}</option>

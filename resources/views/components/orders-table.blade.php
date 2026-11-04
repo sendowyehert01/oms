@@ -18,7 +18,7 @@
         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
             @forelse ($orders as $order)
                 <tr class="transition hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <th scope="row" class="px-6 py-5 font-semibold whitespace-nowrap text-indigo-700 dark:text-indigo-300">{{ $order['number'] }}</th>
+                    <th scope="row" class="px-6 py-5 font-semibold whitespace-nowrap text-brand-700 dark:text-brand-300">{{ $order['number'] }}</th>
                     <td class="px-6 py-5 font-medium whitespace-nowrap">{{ $order['customer_name'] }}</td>
                     <td class="px-6 py-5 whitespace-nowrap text-slate-500 dark:text-slate-400">
                         <time datetime="{{ $order['order_date'] }}">{{ \Illuminate\Support\Carbon::parse($order['order_date'])->format('M j, Y') }}</time>
@@ -28,7 +28,7 @@
                     </td>
                     <td class="px-6 py-5 text-right font-medium whitespace-nowrap tabular-nums"><x-money :cents="$order['total_amount_in_cents']" /></td>
                     <td class="px-6 py-5 whitespace-nowrap">
-                        <a href="{{ route($isSampleData ? 'orders.samples.show' : 'orders.show', ['order' => $order['id'], 'search' => $search, 'page' => $orders->currentPage()]) }}" data-view-order aria-label="View order {{ $order['number'] }}" class="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-indigo-700 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-indigo-300 dark:hover:bg-indigo-950">View</a>
+                        <a href="{{ route($isSampleData ? 'orders.samples.show' : 'orders.show', ['order' => $order['id'], 'search' => $search, 'page' => $orders->currentPage()]) }}" data-view-order aria-label="View order {{ $order['number'] }}" class="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-brand-700 hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:text-brand-300 dark:hover:bg-brand-950">View</a>
                         @if (auth()->user()->isAdmin())
                             <button type="button" disabled data-delete-order data-order-number="{{ $order['number'] }}" data-delete-url="{{ route($isSampleData ? 'orders.samples.destroy' : 'orders.destroy', ['order' => $order['id'], 'search' => $search, 'page' => $orders->currentPage()]) }}" aria-label="Delete order {{ $order['number'] }}" class="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-rose-700 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 disabled:opacity-50 dark:text-rose-300 dark:hover:bg-rose-950">Delete</button>
                         @endif
@@ -44,7 +44,7 @@
                         <p class="font-semibold">{{ $search !== '' ? 'No matching orders' : 'No orders yet' }}</p>
                         @if ($search !== '')
                             <p class="mt-2 text-slate-500 [overflow-wrap:anywhere] dark:text-slate-400">No orders match “{{ $search }}”. Try another order number or customer name.</p>
-                            <a href="{{ route('orders.index') }}" class="mt-4 inline-flex min-h-11 items-center rounded-lg px-3 font-medium text-indigo-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-indigo-300">View all orders</a>
+                            <a href="{{ route('orders.index') }}" class="mt-4 inline-flex min-h-11 items-center rounded-lg px-3 font-medium text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:text-brand-300">View all orders</a>
                         @else
                             <p class="mt-2 text-slate-500 dark:text-slate-400">Orders will appear here when they are available.</p>
                         @endif
