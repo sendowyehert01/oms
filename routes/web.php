@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderCreationController;
 use App\Http\Controllers\PaymentController;
@@ -7,6 +8,7 @@ use App\Http\Controllers\PaymentReceiptController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'hello')->name('home');
+Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
 Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
 Route::get('/orders/create', [OrderCreationController::class, 'create'])->name('orders.create');

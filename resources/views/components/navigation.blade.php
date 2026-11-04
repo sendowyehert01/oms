@@ -5,7 +5,21 @@
             <span class="text-sm font-semibold sm:text-base">Order Management System</span>
         </a>
 
-        <nav aria-label="Main navigation">
+        <nav aria-label="Main navigation" class="flex flex-wrap gap-2">
+            <a
+                href="{{ route('dashboard') }}"
+                @if (request()->routeIs('dashboard')) aria-current="page" @endif
+                @class([
+                    'inline-flex min-h-11 items-center gap-2 rounded-lg px-4 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600',
+                    'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300' => request()->routeIs('dashboard'),
+                    'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white' => ! request()->routeIs('dashboard'),
+                ])
+            >
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" />
+                </svg>
+                Dashboard
+            </a>
             <a
                 href="{{ route('orders.index') }}"
                 @if (request()->routeIs('orders.*')) aria-current="page" @endif
