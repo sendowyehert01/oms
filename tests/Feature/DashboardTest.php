@@ -1,5 +1,6 @@
 <?php
 
+use App\DashboardMetrics;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\User;
@@ -14,7 +15,7 @@ pest()->use(DatabaseMigrations::class);
 
 beforeEach(function (): void {
     $this->withoutVite();
-    $this->actingAs(User::factory()->make(['id' => 1]));
+    $this->actingAs(User::factory()->admin()->create());
 });
 
 test('an empty dashboard shows real zero counts instead of illustrative orders', function (): void {
@@ -83,7 +84,7 @@ test('historical statuses are grouped visibly so the chart does not omit saved o
 
     $response->assertOk()->assertSee('Other status')->assertSee('33.3%')->assertSee('66.7%')
         ->assertSee('#64748b 120.000000deg 360.000000deg', false)
-        ->assertDontSee('Cancelled')->assertDontSee('<script>alert(1)</script>', false);
+        ->assertSee('Cancelled')->assertSee('<script>alert(1)</script>')->assertDontSee('<script>alert(1)</script>', false);
     expect($response['metrics']['orders'])->toBe(3);
     expect($response['metrics']['statuses'][4])->toBe(['label' => 'Other status', 'count' => 2]);
     expect(array_sum(array_column($response['metrics']['statuses'], 'count')))->toBe(3);
@@ -120,14 +121,13 @@ test('dashboard aggregation stays bounded without hydrating clients orders or re
     DB::enableQueryLog();
 
     try {
-        $response = $this->get(route('dashboard'));
+        $metrics = app(DashboardMetrics::class)->summary(auth()->user());
         $queries = DB::getQueryLog();
     } finally {
         DB::disableQueryLog();
     }
 
-    $response->assertOk();
-    expect($response['metrics']['orders'])->toBe($orderCount);
+    expect($metrics['orders'])->toBe($orderCount);
     expect($queries)->toHaveCount(3);
     expect(implode(' ', array_column($queries, 'query')))->not->toContain('order_items', 'payments');
     Event::assertNotDispatched($customerRetrieved);

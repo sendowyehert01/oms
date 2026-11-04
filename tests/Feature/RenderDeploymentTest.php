@@ -79,7 +79,7 @@ test('database sessions retain validation errors and entered values between form
 
 test('database sessions retain sample deletion state after JSON requests', function (): void {
     config(['session.driver' => 'database']);
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->admin()->create());
     $this->get(route('orders.index'))->assertOk();
     $this->withCookie(config('session.cookie'), session()->getId());
 

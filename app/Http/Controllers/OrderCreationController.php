@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SelectOrderCustomerRequest;
 use App\Models\Customer;
+use App\Models\Order;
 use App\OrderDrafts;
 use App\OrderEntries;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,12 +12,14 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 class OrderCreationController extends Controller
 {
     public function create(Request $request, OrderDrafts $drafts): View
     {
+        Gate::authorize('create', Order::class);
         $submissionKey = $request->query('draft');
 
         if ($drafts->find($request->session(), $submissionKey) === null) {
@@ -28,6 +31,7 @@ class OrderCreationController extends Controller
 
     public function customer(Request $request, string $type, OrderDrafts $drafts): View|RedirectResponse
     {
+        Gate::authorize($type === 'existing' ? 'viewAny' : 'create', Customer::class);
         $submissionKey = $request->query('draft');
         $draft = $drafts->find($request->session(), $submissionKey);
 
@@ -47,8 +51,9 @@ class OrderCreationController extends Controller
 
         if ($type === 'existing') {
             try {
-                $selectedCustomer = $selectedCustomerId === false ? null : Customer::query()->find($selectedCustomerId);
+                $selectedCustomer = $selectedCustomerId === false ? null : Customer::query()->visibleTo($request->user())->find($selectedCustomerId);
                 $customers = Customer::query()
+                    ->visibleTo($request->user())
                     ->when($search !== '', fn (Builder $query): Builder => $query->where(fn (Builder $query): Builder => $query
                         ->whereLike('company_name', '%'.$search.'%')
                         ->orWhereLike('contact_person', '%'.$search.'%')
@@ -92,7 +97,7 @@ class OrderCreationController extends Controller
         $customer = $draft['customer'];
 
         if ($draft['customer_type'] === 'existing') {
-            $selectedCustomer = Customer::query()->find($customer['customer_id']);
+            $selectedCustomer = Customer::query()->visibleTo($request->user())->find($customer['customer_id']);
 
             if ($selectedCustomer === null) {
                 return to_route('orders.creation.customer', ['type' => 'existing', 'draft' => $submissionKey])

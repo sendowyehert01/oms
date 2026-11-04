@@ -8,13 +8,17 @@ use App\OrderDrafts;
 use App\OrderEntries;
 use App\PaymentEntries;
 use App\SampleOrders;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class OrderController extends Controller
@@ -25,8 +29,8 @@ class OrderController extends Controller
         $search = is_string($search) ? trim($search) : '';
         $searchTerm = mb_strtolower($search);
 
-        $savedOrders = $orderEntries->all();
-        $isSampleData = $savedOrders->isEmpty() && ! $orderEntries->hasCustomers();
+        $savedOrders = $orderEntries->all($request->user());
+        $isSampleData = $request->user()->isAdmin() && $savedOrders->isEmpty() && ! $orderEntries->hasCustomers($request->user());
 
         $matchingOrders = ($isSampleData ? $sampleOrders->all($request->session()->get('orders.deleted_samples', [])) : $savedOrders)
             ->filter(fn (array $order): bool => $search === ''
@@ -59,7 +63,9 @@ class OrderController extends Controller
         $data = $request->validated();
 
         try {
-            $orderId = $orderEntries->create($data);
+            $orderId = $orderEntries->create($data, $request->user());
+        } catch (AuthorizationException|ModelNotFoundException|HttpExceptionInterface $exception) {
+            throw $exception;
         } catch (Throwable $exception) {
             if ($drafts->find($request->session(), $data['submission_key']) === null) {
                 throw $exception;
@@ -86,10 +92,11 @@ class OrderController extends Controller
         $listQuery = ['search' => $search, 'page' => $page];
         $returnToOrdersUrl = route('orders.index', $listQuery);
         $isSampleData = $request->routeIs('orders.samples.show');
+        abort_if($isSampleData && ! $request->user()->isAdmin(), 404);
         $orderId = filter_var($order, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
         try {
-            $details = $orderId === false ? null : ($isSampleData ? $sampleOrders->find($orderId, $request->session()->get('orders.deleted_samples', [])) : $orderEntries->find($orderId));
+            $details = $orderId === false ? null : ($isSampleData ? $sampleOrders->find($orderId, $request->session()->get('orders.deleted_samples', [])) : $orderEntries->find($orderId, $request->user()));
             $paymentSummary = $details !== null && ! $isSampleData
                 ? $paymentEntries->summary(Order::query()->findOrFail($orderId))
                 : null;
@@ -118,6 +125,11 @@ class OrderController extends Controller
 
     public function destroy(Request $request, string $order, OrderEntries $orderEntries, SampleOrders $sampleOrders): JsonResponse|RedirectResponse
     {
+        if (! $request->user()->isAdmin()) {
+            abort_if($request->routeIs('orders.samples.destroy'), 404);
+            Gate::authorize('delete', Order::query()->findOrFail($order));
+        }
+
         $request->validate(['confirmed' => ['required', 'accepted']], [
             'confirmed.required' => 'Confirm the order deletion before proceeding.',
             'confirmed.accepted' => 'Confirm the order deletion before proceeding.',
@@ -134,7 +146,7 @@ class OrderController extends Controller
                 $orderNumber = $orderId === false ? null : $sampleOrders->delete($orderId, $request->session());
                 $result = $orderNumber === null ? ['status' => 'missing'] : ['status' => 'deleted', 'number' => $orderNumber];
             } else {
-                $result = $orderId === false ? ['status' => 'missing'] : $orderEntries->delete($orderId);
+                $result = $orderId === false ? ['status' => 'missing'] : $orderEntries->delete($orderId, $request->user());
             }
         } catch (QueryException $exception) {
             report($exception);
