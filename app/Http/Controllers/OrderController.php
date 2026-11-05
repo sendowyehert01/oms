@@ -7,7 +7,6 @@ use App\Models\Order;
 use App\OrderDrafts;
 use App\OrderEntries;
 use App\PaymentEntries;
-use App\SampleOrders;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
@@ -23,16 +22,13 @@ use Throwable;
 
 class OrderController extends Controller
 {
-    public function index(Request $request, SampleOrders $sampleOrders, OrderEntries $orderEntries): View|string
+    public function index(Request $request, OrderEntries $orderEntries): View|string
     {
         $search = $request->query('search', '');
         $search = is_string($search) ? trim($search) : '';
         $searchTerm = mb_strtolower($search);
 
-        $savedOrders = $orderEntries->all($request->user());
-        $isSampleData = $request->user()->isAdmin() && $savedOrders->isEmpty() && ! $orderEntries->hasCustomers($request->user());
-
-        $matchingOrders = ($isSampleData ? $sampleOrders->all($request->session()->get('orders.deleted_samples', [])) : $savedOrders)
+        $matchingOrders = $orderEntries->all($request->user())
             ->filter(fn (array $order): bool => $search === ''
                 || str_contains(mb_strtolower($order['number']), $searchTerm)
                 || str_contains((string) $order['id'], $searchTerm)
@@ -53,7 +49,7 @@ class OrderController extends Controller
 
         $orders->appends(['search' => $search]);
 
-        $view = view('orders.index', compact('orders', 'search', 'isSampleData'));
+        $view = view('orders.index', compact('orders', 'search'));
 
         return $request->hasHeader('X-Orders-Fragment') ? $view->fragment('orders-list') : $view;
     }
@@ -84,20 +80,18 @@ class OrderController extends Controller
         return to_route('orders.payments.create', ['order' => $orderId])->with('success', 'Order '.$orderNumber.' created successfully.');
     }
 
-    public function show(Request $request, string $order, OrderEntries $orderEntries, SampleOrders $sampleOrders, PaymentEntries $paymentEntries): View|Response
+    public function show(Request $request, string $order, OrderEntries $orderEntries, PaymentEntries $paymentEntries): View|Response
     {
         $search = $request->query('search', '');
         $search = is_string($search) ? trim($search) : '';
         $page = filter_var($request->query('page', 1), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: 1;
         $listQuery = ['search' => $search, 'page' => $page];
         $returnToOrdersUrl = route('orders.index', $listQuery);
-        $isSampleData = $request->routeIs('orders.samples.show');
-        abort_if($isSampleData && ! $request->user()->isAdmin(), 404);
         $orderId = filter_var($order, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
         try {
-            $details = $orderId === false ? null : ($isSampleData ? $sampleOrders->find($orderId, $request->session()->get('orders.deleted_samples', [])) : $orderEntries->find($orderId, $request->user()));
-            $workflowOrder = $details !== null && ! $isSampleData ? Order::query()->findOrFail($orderId) : null;
+            $details = $orderId === false ? null : $orderEntries->find($orderId, $request->user());
+            $workflowOrder = $details !== null ? Order::query()->findOrFail($orderId) : null;
             $paymentSummary = $workflowOrder !== null ? $paymentEntries->summary($workflowOrder) : null;
             $statusHistory = $workflowOrder?->statusHistory()->paginate(10, ['*'], 'history_page')->withQueryString();
         } catch (QueryException $exception) {
@@ -120,13 +114,12 @@ class OrderController extends Controller
             ], 404);
         }
 
-        return view('orders.show', ['order' => $details, 'isSampleData' => $isSampleData, 'returnToOrdersUrl' => $returnToOrdersUrl, 'paymentSummary' => $paymentSummary, 'workflowOrder' => $workflowOrder, 'statusHistory' => $statusHistory]);
+        return view('orders.show', ['order' => $details, 'returnToOrdersUrl' => $returnToOrdersUrl, 'paymentSummary' => $paymentSummary, 'workflowOrder' => $workflowOrder, 'statusHistory' => $statusHistory]);
     }
 
-    public function destroy(Request $request, string $order, OrderEntries $orderEntries, SampleOrders $sampleOrders): JsonResponse|RedirectResponse
+    public function destroy(Request $request, string $order, OrderEntries $orderEntries): JsonResponse|RedirectResponse
     {
         if (! $request->user()->isAdmin()) {
-            abort_if($request->routeIs('orders.samples.destroy'), 404);
             Gate::authorize('delete', Order::query()->findOrFail($order));
         }
 
@@ -142,12 +135,7 @@ class OrderController extends Controller
         $orderId = filter_var($order, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
         try {
-            if ($request->routeIs('orders.samples.destroy')) {
-                $orderNumber = $orderId === false ? null : $sampleOrders->delete($orderId, $request->session());
-                $result = $orderNumber === null ? ['status' => 'missing'] : ['status' => 'deleted', 'number' => $orderNumber];
-            } else {
-                $result = $orderId === false ? ['status' => 'missing'] : $orderEntries->delete($orderId, $request->user());
-            }
+            $result = $orderId === false ? ['status' => 'missing'] : $orderEntries->delete($orderId, $request->user());
         } catch (QueryException $exception) {
             report($exception);
 
@@ -171,7 +159,7 @@ class OrderController extends Controller
 
         try {
             $request->headers->set('X-Orders-Fragment', '1');
-            $html = $this->index($request, $sampleOrders, $orderEntries);
+            $html = $this->index($request, $orderEntries);
         } catch (Throwable $exception) {
             report($exception);
             $html = null;

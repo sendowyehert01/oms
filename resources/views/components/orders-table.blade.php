@@ -1,4 +1,4 @@
-@props(['orders', 'search' => '', 'isSampleData' => false])
+@props(['orders', 'search' => ''])
 
 <div class="overflow-x-auto" role="region" aria-label="Orders table" tabindex="0">
     <table @class(['w-full text-left text-sm', 'min-w-190' => $orders->count() > 0])>
@@ -28,9 +28,9 @@
                     </td>
                     <td class="px-6 py-5 text-right font-medium whitespace-nowrap tabular-nums"><x-money :cents="$order['total_amount_in_cents']" /></td>
                     <td class="px-6 py-5 whitespace-nowrap">
-                        <a href="{{ route($isSampleData ? 'orders.samples.show' : 'orders.show', ['order' => $order['id'], 'search' => $search, 'page' => $orders->currentPage()]) }}" data-view-order aria-label="View order {{ $order['number'] }}" class="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-brand-700 hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:text-brand-300 dark:hover:bg-brand-950">View</a>
+                        <a href="{{ route('orders.show', ['order' => $order['id'], 'search' => $search, 'page' => $orders->currentPage()]) }}" data-view-order aria-label="View order {{ $order['number'] }}" class="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-brand-700 hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:text-brand-300 dark:hover:bg-brand-950">View</a>
                         @if (auth()->user()->isAdmin())
-                            <button type="button" disabled data-delete-order data-order-number="{{ $order['number'] }}" data-delete-url="{{ route($isSampleData ? 'orders.samples.destroy' : 'orders.destroy', ['order' => $order['id'], 'search' => $search, 'page' => $orders->currentPage()]) }}" aria-label="Delete order {{ $order['number'] }}" class="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-rose-700 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 disabled:opacity-50 dark:text-rose-300 dark:hover:bg-rose-950">Delete</button>
+                            <button type="button" disabled data-delete-order data-order-number="{{ $order['number'] }}" data-delete-url="{{ route('orders.destroy', ['order' => $order['id'], 'search' => $search, 'page' => $orders->currentPage()]) }}" aria-label="Delete order {{ $order['number'] }}" class="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-rose-700 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 disabled:opacity-50 dark:text-rose-300 dark:hover:bg-rose-950">Delete</button>
                         @endif
                     </td>
                 </tr>

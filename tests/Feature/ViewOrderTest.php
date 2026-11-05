@@ -56,11 +56,14 @@ test('each saved order has a view link with the current list search and page', f
         ->assertDontSee('/orders/samples/', false);
 });
 
-test('sample orders have view links preserving search and pagination', function (): void {
+test('saved orders on later pages have view links preserving search and pagination', function (): void {
+    $orderId = createViewOrderFixture(['company_name' => 'Paginated Packaging'], ['id' => 1010]);
+    Order::factory()->for(Order::query()->findOrFail($orderId)->customer)->count(10)->create();
+
     $response = $this->get(route('orders.index', ['search' => 'packaging', 'page' => 2]));
 
     $response->assertOk()
-        ->assertSee('href="'.e(route('orders.samples.show', ['order' => 1010, 'search' => 'packaging', 'page' => 2])).'"', false)
+        ->assertSee('href="'.e(route('orders.show', ['order' => $orderId, 'search' => 'packaging', 'page' => 2])).'"', false)
         ->assertSee('aria-label="View order ORD-2026-1010"', false);
 });
 
@@ -141,15 +144,20 @@ test('unknown or invalid order IDs return a not found page with a back link', fu
         ->assertDontSee('Try again');
 })->with(['missing order' => '99999', 'zero ID' => '0', 'out of range ID' => '999999999999999999999999']);
 
-test('sample details contain illustrative items that sum exactly to the list total', function (): void {
-    $response = $this->get(route('orders.samples.show', ['order' => 1019, 'search' => 'Bloom', 'page' => 1]));
+test('saved item prices with odd cents sum exactly to the order total', function (): void {
+    $orderId = createViewOrderFixture(['company_name' => 'Bloom Retail'], ['id' => 1019], [
+        ['product_name' => 'Custom packaging', 'quantity' => 1, 'unit_price' => '1780.37'],
+        ['product_name' => 'Printed labels', 'quantity' => 1, 'unit_price' => '1780.38'],
+    ]);
+
+    $response = $this->get(route('orders.show', ['order' => $orderId, 'search' => 'Bloom', 'page' => 1]));
 
     $response->assertOk()
         ->assertSee('ORD-2026-1019')
         ->assertSee('Bloom Retail')
-        ->assertSee('Sample order. Item details are illustrative.')
-        ->assertSee('Sample custom packaging')
-        ->assertSee('Sample printed labels')
+        ->assertDontSee('Sample order. Item details are illustrative.')
+        ->assertSee('Custom packaging')
+        ->assertSee('Printed labels')
         ->assertSee('1,780.37')
         ->assertSee('1,780.38')
         ->assertSee('3,560.75');
@@ -157,17 +165,16 @@ test('sample details contain illustrative items that sum exactly to the list tot
     expect($response['order']['total_amount_in_cents'])->toBe(356075);
 });
 
-test('unknown sample orders return a not found page', function (): void {
-    $this->get(route('orders.samples.show', ['order' => 999]))->assertNotFound()->assertSee('Order not found');
+test('retired sample detail URLs return 404 for unknown IDs', function (): void {
+    $this->get('/orders/samples/999')->assertNotFound();
 });
 
-test('saved and sample orders with the same ID have distinct detail pages', function (): void {
+test('saved orders remain available while retired sample URLs with the same ID return 404', function (): void {
     createViewOrderFixture(['company_name' => 'Actual customer'], ['id' => 1024]);
 
     $this->get(route('orders.show', ['order' => 1024]))->assertOk()
         ->assertSee('Actual customer')->assertSee('Plastic bags')->assertDontSee('Northstar Packaging');
-    $this->get(route('orders.samples.show', ['order' => 1024]))->assertOk()
-        ->assertSee('Northstar Packaging')->assertSee('Sample custom packaging')->assertDontSee('Actual customer');
+    $this->get('/orders/samples/1024')->assertNotFound()->assertDontSee('Actual customer');
 });
 
 test('the saved order route does not fall back to a sample with the same ID', function (): void {

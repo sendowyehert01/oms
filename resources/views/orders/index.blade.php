@@ -1,6 +1,6 @@
 <x-app-layout title="Orders">
     <x-page-heading title="Orders" eyebrow="Order management" description="Keep track of your customers and orders in one place.">
-        <span class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{{ $isSampleData ? 'Sample orders' : 'Saved orders' }}</span>
+        <span class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">Saved orders</span>
         <a href="{{ route('orders.create') }}" class="inline-flex min-h-11 items-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Create Order</a>
     </x-page-heading>
 
@@ -19,7 +19,7 @@
                 <x-orders-search :search="$search" />
             </div>
 
-            <x-orders-table :orders="$orders" :search="$search" :is-sample-data="$isSampleData" />
+            <x-orders-table :orders="$orders" :search="$search" />
 
             <x-pagination :paginator="$orders" />
         </section>

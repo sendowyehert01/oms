@@ -96,13 +96,6 @@ class OrderEntries
         ];
     }
 
-    public function hasCustomers(User $user): bool
-    {
-        Gate::forUser($user)->authorize('viewAny', Customer::class);
-
-        return Schema::hasTable('customers') && Customer::query()->exists();
-    }
-
     /**
      * @return array{status: 'deleted'|'missing'|'protected', number?: string}
      */
