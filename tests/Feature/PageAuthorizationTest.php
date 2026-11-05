@@ -89,8 +89,8 @@ test('staff may record and download visible payments but may not delete orders',
 })->with(['own client' => false, 'shared client' => true]);
 
 test('staff cannot use sample routes or manage staff accounts', function (): void {
-    $this->get(route('orders.samples.show', ['order' => 1]))->assertNotFound();
-    $this->deleteJson(route('orders.samples.destroy', ['order' => 1]), ['confirmed' => true])->assertNotFound();
+    $this->get('/orders/samples/1')->assertNotFound();
+    $this->deleteJson('/orders/samples/1', ['confirmed' => true])->assertNotFound();
     $this->get(route('staff.index'))->assertForbidden();
     $this->post(route('staff.store'), [])->assertForbidden();
 });

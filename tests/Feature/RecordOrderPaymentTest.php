@@ -233,6 +233,6 @@ test('unknown orders and sample URLs cannot receive recorded payments', function
     $this->get(route('orders.payments.create', ['order' => 999999]))->assertNotFound();
     $this->post(route('orders.payments.store', ['order' => 999999]), paymentData())->assertNotFound();
     $this->get('/orders/samples/1024/payments/create')->assertNotFound();
-    $this->get(route('orders.samples.show', ['order' => 1024]))->assertOk()->assertDontSee('Record payment');
+    $this->get('/orders/samples/1024')->assertNotFound();
     $this->assertDatabaseCount('payments', 0);
 });

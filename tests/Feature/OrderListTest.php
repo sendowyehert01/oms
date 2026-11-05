@@ -1,6 +1,32 @@
 <?php
 
+use App\Models\Customer;
+use App\Models\Order;
+use Illuminate\Database\Eloquent\Factories\Sequence;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Pagination\LengthAwarePaginator;
+
+pest()->use(DatabaseMigrations::class);
+
+beforeEach(function (): void {
+    $this->withoutVite();
+});
+
+function createPaginatedOrderListFixture(): void
+{
+    $customers = Customer::factory()->count(4)->sequence(
+        ['company_name' => 'Northstar Packaging'],
+        ['company_name' => 'Summit Packaging'],
+        ['company_name' => 'Cedar Packaging'],
+        ['company_name' => 'Harbor Foods'],
+    )->create();
+
+    Order::factory()->count(24)->sequence(fn (Sequence $sequence): array => [
+        'id' => 1001 + $sequence->index,
+        'customer_id' => $customers[($sequence->index + 1) % 4]->id,
+        'order_date' => '2026-10-31',
+    ])->hasItems(1)->create();
+}
 
 test('the legacy home entry redirects to the base login URL', function (): void {
     $response = $this->get(route('home'));
@@ -8,8 +34,14 @@ test('the legacy home entry redirects to the base login URL', function (): void 
     $response->assertRedirect(route('login'));
 });
 
-test('orders display their number customer date status and formatted total without application tables', function (): void {
+test('saved orders display their number customer date status and formatted total', function (): void {
     config(['session.driver' => 'file', 'cache.default' => 'file']);
+    Order::factory()->for(Customer::factory()->state(['company_name' => 'Northstar Packaging']))
+        ->hasItems(1, ['quantity' => 10, 'unit_price' => '1850.00'])
+        ->create(['id' => 1024, 'order_date' => '2026-10-31', 'status' => 'In production']);
+    Order::factory()->for(Customer::factory()->state(['company_name' => 'Harbor Foods']))
+        ->hasItems(1, ['quantity' => 1, 'unit_price' => '4250.50'])
+        ->create(['id' => 1023, 'order_date' => '2026-10-30']);
 
     $response = $this->get(route('orders.index'));
 
@@ -17,11 +49,14 @@ test('orders display their number customer date status and formatted total witho
         ->assertSeeInOrder(['Order number', 'Customer name', 'Order date', 'Order status', 'Total amount'])
         ->assertSeeInOrder(['ORD-2026-1024', 'Northstar Packaging', 'Oct 31, 2026', 'In production', '18,500.00'])
         ->assertSee('4,250.50')
-        ->assertSee('Sample orders')
+        ->assertSee('Saved orders')
+        ->assertDontSee('Sample orders')
         ->assertSee('aria-current="page"', false);
 });
 
 test('each order page shows its own records and the correct range', function (int $page, string $firstOrder, string $lastOrder, int $count, string $range): void {
+    createPaginatedOrderListFixture();
+
     $response = $this->get(route('orders.index', ['page' => $page]));
 
     $response->assertOk()
@@ -37,6 +72,8 @@ test('each order page shows its own records and the correct range', function (in
 ]);
 
 test('the first page links forward and disables previous navigation', function (): void {
+    createPaginatedOrderListFixture();
+
     $response = $this->get(route('orders.index'));
 
     $response->assertOk()
@@ -47,6 +84,8 @@ test('the first page links forward and disables previous navigation', function (
 });
 
 test('the middle page links to the previous and next pages', function (): void {
+    createPaginatedOrderListFixture();
+
     $response = $this->get(route('orders.index', ['page' => 2]));
 
     $response->assertOk()
@@ -59,6 +98,8 @@ test('the middle page links to the previous and next pages', function (): void {
 });
 
 test('the last page links back and disables next navigation', function (): void {
+    createPaginatedOrderListFixture();
+
     $response = $this->get(route('orders.index', ['page' => 3]));
 
     $response->assertOk()
@@ -67,6 +108,8 @@ test('the last page links back and disables next navigation', function (): void 
 });
 
 test('orders can be searched by number or customer name regardless of case and surrounding spaces', function (string $search, string $expectedOrder, string $excludedOrder, int $total): void {
+    createPaginatedOrderListFixture();
+
     $response = $this->get(route('orders.index', ['search' => $search]));
 
     $response->assertOk()
@@ -84,6 +127,8 @@ test('orders can be searched by number or customer name regardless of case and s
 ]);
 
 test('search is retained in pagination links and only matching orders appear on later pages', function (): void {
+    createPaginatedOrderListFixture();
+
     $response = $this->get(route('orders.index', ['search' => 'packaging', 'page' => 2]));
 
     $response->assertOk()
@@ -92,11 +137,12 @@ test('search is retained in pagination links and only matching orders appear on 
         ->assertSee('Showing 11 to 18 of 18 orders')
         ->assertSee('ORD-2026-1010')
         ->assertDontSee('Harbor Foods')
-        ->assertDontSee('Bloom Retail')
         ->assertDontSee('ORD-2026-1024');
 });
 
 test('a search with no matches shows an empty state and a zero record range', function (): void {
+    createPaginatedOrderListFixture();
+
     $response = $this->get(route('orders.index', ['search' => 'missing customer']));
 
     $response->assertOk()
@@ -110,6 +156,7 @@ test('a search with no matches shows an empty state and a zero record range', fu
 });
 
 test('search text is escaped in the input and empty state', function (): void {
+    createPaginatedOrderListFixture();
     $search = '<script>alert("test")</script>';
 
     $response = $this->get(route('orders.index', ['search' => $search]));
@@ -121,6 +168,8 @@ test('search text is escaped in the input and empty state', function (): void {
 });
 
 test('a requested page beyond the search results shows the last available page', function (): void {
+    createPaginatedOrderListFixture();
+
     $response = $this->get(route('orders.index', ['search' => 'Northstar', 'page' => 99]));
 
     $response->assertOk()
@@ -130,6 +179,8 @@ test('a requested page beyond the search results shows the last available page',
 });
 
 test('non string search input is treated as an empty search', function (): void {
+    createPaginatedOrderListFixture();
+
     $response = $this->get(route('orders.index', ['search' => ['Northstar']]));
 
     $response->assertOk()

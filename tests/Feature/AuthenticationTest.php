@@ -105,14 +105,25 @@ test('all internal browser endpoints require authentication before accessing dat
     'payment form' => ['GET', '/orders/1/payments/create'],
     'save payment' => ['POST', '/orders/1/payments'],
     'receipt' => ['GET', '/orders/1/payments/1/receipt'],
-    'sample order' => ['GET', '/orders/samples/1'],
+    'item production' => ['POST', '/orders/1/items/1/production'],
     'saved order' => ['GET', '/orders/1'],
-    'delete sample' => ['DELETE', '/orders/samples/1'],
+    'order status' => ['POST', '/orders/1/status'],
     'delete saved' => ['DELETE', '/orders/1'],
     'staff list' => ['GET', '/staff'],
     'create staff' => ['POST', '/staff'],
     'password form' => ['GET', '/account/password'],
     'password update' => ['PUT', '/user/password'],
+]);
+
+test('retired sample endpoints return 404 before authentication', function (string $method, string $path): void {
+    $this->call($method, $path)->assertNotFound();
+
+    $this->assertDatabaseEmpty('users');
+    $this->assertDatabaseEmpty('orders');
+    $this->assertDatabaseEmpty('payments');
+})->with([
+    'sample details' => ['GET', '/orders/samples/1'],
+    'sample deletion' => ['DELETE', '/orders/samples/1'],
 ]);
 
 test('unauthenticated receipt requests return 401 when expecting JSON', function (): void {

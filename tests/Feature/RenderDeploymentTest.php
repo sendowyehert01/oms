@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
@@ -77,19 +78,26 @@ test('database sessions retain validation errors and entered values between form
     $this->assertDatabaseCount('orders', 0);
 });
 
-test('database sessions retain sample deletion state after JSON requests', function (): void {
+test('database sessions retain saved order deletion feedback after JSON requests', function (): void {
     config(['session.driver' => 'database']);
-    $this->actingAs(User::factory()->admin()->create());
+    $admin = User::factory()->admin()->create();
+    $order = Order::factory()->hasItems(1)->create(['order_date' => '2026-10-31']);
+    $this->actingAs($admin);
     $this->get(route('orders.index'))->assertOk();
     $this->withCookie(config('session.cookie'), session()->getId());
 
-    $response = $this->deleteJson(route('orders.samples.destroy', ['order' => 1024]), ['confirmed' => true]);
+    $response = $this->deleteJson(route('orders.destroy', ['order' => $order]), ['confirmed' => true]);
 
-    $response->assertOk()->assertSessionHas('orders.deleted_samples', [1024]);
+    $response->assertOk()->assertSessionHas('success', 'Order ORD-2026-0001 deleted successfully.');
     $this->get(route('orders.index'))->assertOk()
-        ->assertDontSee('data-order-number="ORD-2026-1024"', false)
-        ->assertSee('Showing 1 to 10 of 23 orders');
-    $this->get(route('orders.samples.show', ['order' => 1024]))->assertNotFound();
+        ->assertSee('No orders yet')
+        ->assertSee('Showing 0 to 0 of 0 orders')
+        ->assertDontSee('Sample orders');
+    $this->get(route('orders.show', ['order' => $order]))->assertNotFound();
+    $this->assertAuthenticatedAs($admin);
+    $this->assertModelExists($admin);
+    $this->assertDatabaseEmpty('orders');
+    $this->assertDatabaseEmpty('order_items');
     $this->assertDatabaseCount('sessions', 1);
 });
 

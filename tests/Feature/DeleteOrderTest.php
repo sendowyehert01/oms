@@ -208,53 +208,46 @@ test('normal failed deletion redirects with an error instead of success', functi
         ->assertSessionMissing('success');
 });
 
-test('sample deletion removes the selected sample from the session list and details without changing the database', function (): void {
-    $this->get(route('orders.index', ['search' => 'Northstar']))->assertOk()
-        ->assertSee('data-delete-url="'.e(route('orders.samples.destroy', ['order' => 1024, 'search' => 'Northstar', 'page' => 1])).'"', false);
-    $this->withCookie(config('session.cookie'), session()->getId());
+test('retired sample deletion returns 404 without changing the database or session state', function (): void {
+    $this->withSession(['orders.deleted_samples' => [1001]]);
 
-    $response = $this->deleteJson(route('orders.samples.destroy', ['order' => 1024, 'search' => 'Northstar']), ['confirmed' => true]);
+    $response = $this->deleteJson('/orders/samples/1024', ['confirmed' => true]);
 
-    $response->assertOk()->assertJsonPath('message', 'Order ORD-2026-1024 deleted successfully.')
-        ->assertSessionHas('orders.deleted_samples', [1024]);
-    expect($response->json('html'))->toContain('ORD-2026-1020', 'Showing 1 to 5 of 5 orders')->not->toContain('ORD-2026-1024');
+    $response->assertNotFound()->assertSessionHas('orders.deleted_samples', [1001]);
     $this->assertDatabaseCount('orders', 0);
     $this->assertDatabaseCount('customers', 0);
     $this->assertDatabaseCount('order_items', 0);
-    $this->get(route('orders.index'))->assertOk()->assertDontSee('data-order-number="ORD-2026-1024"', false)->assertSee('Showing 1 to 10 of 23 orders');
-    $this->get(route('orders.samples.show', ['order' => 1024]))->assertNotFound();
-    $this->deleteJson(route('orders.samples.destroy', ['order' => 1024]), ['confirmed' => true])->assertNotFound();
 });
 
-test('saved and sample deletions stay isolated when both sources have the same ID', function (): void {
+test('retired sample deletion cannot delete a saved order with the same ID', function (): void {
     createDeleteOrderFixture(orderId: 1024, customerName: 'Actual customer');
 
-    $response = $this->deleteJson(route('orders.samples.destroy', ['order' => 1024]), ['confirmed' => true]);
+    $response = $this->deleteJson('/orders/samples/1024', ['confirmed' => true]);
 
-    $response->assertOk();
+    $response->assertNotFound();
     $this->assertDatabaseHas('orders', ['id' => 1024]);
     $this->assertDatabaseCount('order_items', 2);
-    expect($response->json('html'))->toContain('Actual customer', 'ORD-2026-1024');
-    $this->withCookie(config('session.cookie'), session()->getId());
-    $this->get(route('orders.samples.show', ['order' => 1024]))->assertNotFound();
+    $this->get(route('orders.show', ['order' => 1024]))->assertOk()->assertSee('Actual customer');
+    $this->get('/orders/samples/1024')->assertNotFound();
     $this->deleteJson(route('orders.destroy', ['order' => 1024]), ['confirmed' => true])->assertOk();
     $this->assertDatabaseCount('orders', 0);
     $this->assertDatabaseCount('customers', 1);
 });
 
-test('missing sample deletion returns 404 with clear feedback', function (): void {
-    $this->deleteJson(route('orders.samples.destroy', ['order' => 999]), ['confirmed' => true])
-        ->assertNotFound()->assertJsonPath('message', 'The order does not exist or has already been deleted.');
+test('retired sample deletion returns 404 for missing IDs', function (): void {
+    $this->deleteJson('/orders/samples/999', ['confirmed' => true])->assertNotFound();
+    $this->assertDatabaseCount('orders', 0);
 });
 
-test('deleting the final sample shows an empty sample list', function (): void {
+test('old sample deletion session data does not populate an empty order list', function (): void {
     $this->withSession(['orders.deleted_samples' => range(1001, 1023)])
         ->withCookie(config('session.cookie'), session()->getId());
 
-    $response = $this->deleteJson(route('orders.samples.destroy', ['order' => 1024]), ['confirmed' => true]);
+    $response = $this->get(route('orders.index'));
 
     $response->assertOk();
-    expect($response->json('html'))->toContain('No orders yet', 'Showing 0 to 0 of 0 orders')->not->toContain('data-delete-order');
+    expect($response['orders']->total())->toBe(0);
+    $response->assertSee('No orders yet')->assertSee('Showing 0 to 0 of 0 orders')->assertDontSee('data-delete-order', false);
 });
 
 test('database failure returns 503 without exposing internal details or removing records', function (): void {

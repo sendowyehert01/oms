@@ -24,7 +24,7 @@
             <meta name="csrf-token" content="{{ csrf_token() }}">
             @vite('resources/js/delete-order.js')
         @endif
-        @if (request()->routeIs('orders.index', 'orders.show', 'orders.samples.show'))
+        @if (request()->routeIs('orders.index', 'orders.show'))
             @vite('resources/js/order-navigation.js')
         @endif
     </head>
@@ -43,7 +43,7 @@
             <footer class="workspace-footer"><span>OMS · Your daily workspace</span><span>Clients. Orders. Payments.</span></footer>
         @endauth
 
-        @if (request()->routeIs('orders.index', 'orders.show', 'orders.samples.show'))
+        @if (request()->routeIs('orders.index', 'orders.show'))
             <div data-order-loading role="status" aria-live="polite" hidden class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4">
                 <div class="flex items-center gap-3 rounded-xl bg-white p-6 text-sm font-semibold shadow-lg dark:bg-slate-900">
                     <svg class="size-5 animate-spin motion-reduce:animate-none text-brand-600" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3" opacity="0.25" /><path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" stroke-width="3" stroke-linecap="round" /></svg>
