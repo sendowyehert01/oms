@@ -1,6 +1,6 @@
 <x-app-layout title="Order Details">
     <x-page-heading title="Order details" eyebrow="Order management" :description="$order['number']">
-        <a href="#production-heading" class="inline-flex min-h-11 items-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700">Production</a>
+        <a href="#order-checklist-heading" data-order-step-link class="inline-flex min-h-11 items-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700">Order checklist</a>
         <a href="{{ $returnToOrdersUrl }}" class="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:border-slate-700 dark:hover:bg-slate-800">Back to Orders</a>
     </x-page-heading>
 
@@ -9,6 +9,9 @@
     @endif
 
     <x-form-errors />
+    @if ($workflowOrder !== null)
+        <x-order-checklist :order="$workflowOrder" :summary="$paymentSummary" />
+    @endif
     <div class="grid gap-6 lg:grid-cols-2">
         <section aria-labelledby="order-heading" class="oms-surface rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
             <h2 id="order-heading" class="mb-5 text-lg font-semibold">Order information</h2>
@@ -40,11 +43,8 @@
         </section>
     </div>
 
-    @if ($workflowOrder !== null)
-        <x-order-schedule-panel :order="$workflowOrder" />
-    @endif
     <section aria-labelledby="items-heading" class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <h2 id="items-heading" class="border-b border-slate-200 p-4 text-lg font-semibold sm:p-6 dark:border-slate-800">Order items</h2>
+        <h2 id="items-heading" tabindex="-1" class="scroll-mt-24 border-b border-slate-200 p-4 text-lg font-semibold sm:p-6 dark:border-slate-800">Order items</h2>
         <div class="overflow-x-auto" role="region" aria-label="Order items table" tabindex="0">
             <table class="min-w-150 w-full text-left text-sm">
                 <caption class="sr-only">Items, quantities, prices, and subtotals for {{ $order['number'] }} in Philippine pesos</caption>
@@ -95,7 +95,6 @@
         <x-payment-summary :summary="$paymentSummary" :record-url="route('orders.payments.create', ['order' => $order['id']])" />
     @endif
     @if ($workflowOrder !== null)
-        <x-delivery-panel :order="$workflowOrder" :summary="$paymentSummary" />
         <x-order-workflow-panel :order="$workflowOrder" :history="$statusHistory" />
     @endif
 </x-app-layout>
