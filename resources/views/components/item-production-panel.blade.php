@@ -26,7 +26,7 @@
             <article aria-labelledby="production-item-{{ $item->id }}" class="rounded-xl border border-slate-200 p-4 sm:p-5 dark:border-slate-800">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="min-w-0">
-                        <h3 id="production-item-{{ $item->id }}" class="break-words text-sm font-semibold">{{ $item->product_name }}</h3>
+                        <h4 id="production-item-{{ $item->id }}" tabindex="-1" class="scroll-mt-24 break-words text-sm font-semibold">{{ $item->product_name }}</h4>
                         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $item->measurement()->displayValue() }}</p>
                     </div>
                     <x-order-status :status="$progress->value" />
@@ -48,7 +48,7 @@
                 @endif
                 @can('updateStatus', $order)
                     @if ($trackingAllowed)
-                        <details class="mt-4 border-t border-slate-100 pt-3 dark:border-slate-800">
+                        <details id="stock-check-{{ $item->id }}" @if ($availability === \App\ItemAvailability::NotChecked || ($needsReview && $availability !== \App\ItemAvailability::Available) || ($isFailedCheck && ($errors->any() || session('error')))) open @endif class="mt-4 scroll-mt-24 border-t border-slate-100 pt-3 dark:border-slate-800">
                             <summary class="min-h-11 py-3 text-sm font-semibold text-brand-700 dark:text-brand-300">Check / update finished stock</summary>
                             <form method="POST" action="{{ route('orders.items.production.update', ['order' => $order, 'item' => $item]) }}" data-busy-form="Saving stock check..." class="mt-3 space-y-4">
                                 @csrf

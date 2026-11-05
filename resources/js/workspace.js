@@ -80,6 +80,22 @@ document.querySelectorAll('[data-password-toggle]').forEach((button) => {
     });
 });
 
+document.querySelectorAll('[data-order-step-link]').forEach((link) => {
+    link.addEventListener('click', () => {
+        const target = document.getElementById(link.hash.slice(1));
+        if (!target) {
+            return;
+        }
+        let disclosure = target.closest('details');
+        while (disclosure) {
+            disclosure.open = true;
+            disclosure = disclosure.parentElement?.closest('details');
+        }
+        const focusTarget = target.matches('details') ? target.querySelector('summary') : target;
+        focusTarget?.focus({ preventScroll: true });
+    });
+});
+
 const pendingButtons = new Map();
 document.addEventListener('submit', (event) => {
     const form = event.target.closest('[data-busy-form]');
