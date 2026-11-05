@@ -24,5 +24,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Model::preventLazyLoading(! $this->app->isProduction());
         Gate::define('manage-staff', fn (User $user): bool => $user->isAdmin());
+        Gate::define('export-data', fn (User $user): bool => $user->isAdmin());
     }
 }
