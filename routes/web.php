@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BalanceController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DataExportController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderCreationController;
 use App\Http\Controllers\OrderItemProductionController;
@@ -35,6 +36,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/orders/create/cancel', [OrderCreationController::class, 'cancel'])->name('orders.creation.cancel');
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
     Route::get('/balances', BalanceController::class)->name('balances.index');
+    Route::get('/exports', [DataExportController::class, 'index'])->middleware('can:export-data')->name('exports.index');
+    Route::post('/exports/{type}', [DataExportController::class, 'download'])->whereIn('type', ['clients', 'orders'])->middleware('can:export-data')->name('exports.download');
     Route::post('/orders/{order}/payment-due-date', PaymentDueDateController::class)->whereNumber('order')->name('orders.payment-due-date.update');
     Route::post('/orders/{order}/status', OrderStatusController::class)->whereNumber('order')->name('orders.status.update');
     Route::post('/orders/{order}/items/{item}/production', OrderItemProductionController::class)->scopeBindings()->whereNumber(['order', 'item'])->name('orders.items.production.update');

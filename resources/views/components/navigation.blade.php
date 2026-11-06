@@ -45,6 +45,12 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 5h18v14H3zM3 9h18" /><circle cx="12" cy="14" r="2" /></svg>
                 Balances
             </a>
+            @can('export-data')
+                <a href="{{ route('exports.index') }}" @if (request()->routeIs('exports.*')) aria-current="page" @endif class="workspace-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8m-8 4h8m-4-4v7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                    Data Exports
+                </a>
+            @endcan
             @can('manage-staff')
                 <a href="{{ route('staff.index') }}" @if (request()->routeIs('staff.*')) aria-current="page" @endif class="workspace-link">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="9" cy="8" r="3" /><path d="M3 20v-2a6 6 0 0 1 12 0v2m1-15a3 3 0 0 1 0 6m3 9v-2a6 6 0 0 0-3-5" stroke-linecap="round" /></svg>
