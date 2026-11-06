@@ -31,20 +31,20 @@
                     <div class="rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-950">
                         <p class="font-semibold">Included in your report</p>
                         @if ($type === 'clients')
-                            <p class="mt-2 leading-6 text-slate-600 dark:text-slate-400">An overview and client list with company, contact person, phone, address, creation date, and creator.</p>
+                            <p class="mt-2 leading-6 text-slate-600 dark:text-slate-400">A client list with client ID, company name, contact person, contact number, address, created date, and creator.</p>
                         @else
-                            <p class="mt-2 leading-6 text-slate-600 dark:text-slate-400">An overview, order list, clients, item specifications and production progress, and payment records. Includes order status, payment status, overdue status, and balances.</p>
+                            <p class="mt-2 leading-6 text-slate-600 dark:text-slate-400">An order list with order status, order ID, customer name, order date, items, remarks, balance, total amount, terms of payment, and payment status including overdue status.</p>
                         @endif
                     </div>
 
                     @if ($type === 'orders')
-                        <p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Balances and overdue status reflect the time of download in {{ $timezone }}. All payments for these orders are included, even those outside your selected dates.</p>
+                        <p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Balances and overdue status reflect the time of download in {{ $timezone }}. Balances include all recorded payments for these orders, even those outside your selected dates.</p>
                     @endif
                     <button type="submit" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
                         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4" stroke-linecap="round" stroke-linejoin="round" /></svg>
                         Download {{ strtolower($label) }} Excel
                     </button>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Excel (.xlsx) with formatted dates, filters, frozen headings, and PHP currency. The download starts when your report is ready.</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Excel (.xlsx) using the approved report template. The download starts when your report is ready.</p>
                 </form>
             </section>
         @endforeach

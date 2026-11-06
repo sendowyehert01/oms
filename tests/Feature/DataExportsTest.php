@@ -64,20 +64,17 @@ function exportRows(DOMXPath $sheet): array
         $values = [];
         foreach ($sheet->query('s:c', $row) as $cell) {
             $column = $columns[preg_replace('/\d+/', '', $cell->getAttribute('r'))];
+            if ($column === '') {
+                continue;
+            }
             $values[$column] = $sheet->evaluate($cell->getAttribute('t') === 'inlineStr' ? 'string(s:is/s:t)' : 'string(s:v)', $cell);
         }
-        if (reset($values) !== 'No records match the selected date range.') {
+        if (array_filter($values, fn (string $value): bool => $value !== '') !== []) {
             $rows[] = $values;
         }
     }
 
     return $rows;
-}
-
-/** @return array<string, string> */
-function exportMetrics(DOMXPath $sheet): array
-{
-    return array_column(exportRows($sheet), 'Value', 'Metric');
 }
 
 test('administrators can find separate client and order exports in the navigation', function (): void {
@@ -127,25 +124,29 @@ test('client exports include both reporting-date boundaries and preserve contact
 
     $response = $this->post('/exports/clients', ['date_from' => '2026-11-01', 'date_to' => '2026-11-05']);
 
-    $response->assertOk()->assertDownload('OMS-Clients-2026-11-01-to-2026-11-05.xlsx')
+    $response->assertOk()->assertDownload('list-of-clients-2026-11-01-to-2026-11-05.xlsx')
         ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         ->assertHeader('X-Content-Type-Options', 'nosniff');
     expect($response->headers->get('Cache-Control'))->toContain('private', 'no-store');
     $sheets = exportSheets($response);
-    expect(array_keys($sheets))->toBe(['Overview', 'Clients']);
+    expect(array_keys($sheets))->toBe(['Clients']);
     $rows = exportRows($sheets['Clients']);
-    expect(array_column($rows, 'Company name'))->toBe(['Start boundary', 'End boundary']);
-    expect($rows[0])->toMatchArray([
-        'Contact person' => 'Alex Cruz', 'Contact number' => '09123456789', 'Address' => '123 Market Street',
-        'Created at' => '46327', 'Created by' => 'Export Administrator',
+    expect(array_column($rows, 'Company Name'))->toBe(['Start boundary', 'End boundary']);
+    expect($rows[0])->toBe([
+        'Client ID' => '2', 'Company Name' => 'Start boundary', 'Contact Person' => 'Alex Cruz',
+        'Contact Number' => '09123456789', 'Address' => '123 Market Street',
+        'Created Date' => '46327', 'Created By' => 'Export Administrator',
     ]);
-    expect((float) $rows[1]['Created at'])->toBeGreaterThan(46331.99)->toBeLessThan(46332.0);
-    expect(exportMetrics($sheets['Overview'])['Clients exported'])->toBe('2');
+    expect($rows[1]['Created Date'])->toBe('46331');
+    expect($sheets['Clients']->evaluate('string(//s:c[@r="D8"]/@t)'))->toBe('inlineStr');
+    expect($sheets['Clients']->evaluate('string(//s:c[@r="F8"]/@s)'))->toBe('8');
+    expect($sheets['Clients']->evaluate('count(//s:row[@r="7"]/s:c)'))->toBe(10.0);
+    expect($sheets['Clients']->evaluate('count(//s:row[@r="7"]/s:c[position() > 7]/s:is)'))->toBe(0.0);
 });
 
 test('orders use their order date and include clients created outside the range', function (): void {
     $client = Customer::factory()->create(['company_name' => 'Established client', 'created_at' => '2020-01-01 00:00:00']);
-    $orders = Order::factory()->for($client)->count(4)->sequence(
+    Order::factory()->for($client)->count(4)->sequence(
         ['order_date' => '2026-10-31', 'created_at' => '2026-11-03 00:00:00'],
         ['order_date' => '2026-11-01', 'created_at' => '2026-10-01 00:00:00'],
         ['order_date' => '2026-11-05', 'created_at' => '2026-12-01 00:00:00'],
@@ -155,24 +156,26 @@ test('orders use their order date and include clients created outside the range'
 
     $response = $this->post('/exports/orders', ['date_from' => '2026-11-01', 'date_to' => '2026-11-05']);
 
-    $response->assertOk()->assertDownload('OMS-Orders-2026-11-01-to-2026-11-05.xlsx');
+    $response->assertOk()->assertDownload('list-of-orders-2026-11-01-to-2026-11-05.xlsx');
     $sheets = exportSheets($response);
-    expect(array_keys($sheets))->toBe(['Overview', 'Orders', 'Clients', 'Order Items', 'Payments']);
-    expect(array_column(exportRows($sheets['Orders']), 'Order ID'))->toBe([(string) $orders[1]->id, (string) $orders[2]->id]);
-    expect(array_column(exportRows($sheets['Clients']), 'Company name'))->toBe(['Established client']);
-    expect(exportMetrics($sheets['Overview']))->toMatchArray(['Orders exported' => '2', 'Clients represented' => '1']);
+    expect(array_keys($sheets))->toBe(['Orders']);
+    $rows = exportRows($sheets['Orders']);
+    expect(array_column($rows, 'Order ID'))->toBe(['ORD-2026-0002', 'ORD-2026-0003']);
+    expect(array_column($rows, 'Order Date'))->toBe(['46327', '46331']);
+    expect(array_column($rows, 'Customer Name'))->toBe(['Established client', 'Established client']);
 });
 
 test('order exports include details and all payments without duplicating financial totals', function (): void {
     $client = Customer::factory()->for($this->admin, 'creator')->create(['company_name' => 'Acme Packaging']);
     $order = Order::factory()->for($client)->for($this->admin, 'creator')->create([
         'order_date' => '2026-11-03', 'payment_due_date' => '2026-11-04', 'terms_of_payment' => 'Net 30',
-        'status' => 'Delivered', 'target_delivery_date' => '2026-11-04', 'delivery_date' => '2026-11-05',
-        'delivery_recipient' => 'Alex Cruz', 'delivery_notes' => 'Complete delivery',
-        'delivery_confirmed_by_name' => 'Export Administrator', 'delivery_confirmed_at' => '2026-11-05 07:00:00',
+        'status' => 'Delivered',
     ]);
-    OrderItem::factory()->for($order)->withSpecifications()->readyForDelivery()->create();
-    OrderItem::factory()->for($order)->create(['quantity' => '40 pcs', 'unit_price' => '1.25']);
+    OrderItem::factory()->for($order)->withSpecifications()->readyForDelivery()->create(['product_name' => 'Transparent Bags']);
+    OrderItem::factory()->for($order)->create([
+        'product_name' => 'Paper Bags', 'quantity' => '40 pcs', 'unit_price' => '1.25',
+        'customization_notes' => 'Confirm size before packing.',
+    ]);
     Payment::factory()->for($order)->create(['payment_date' => '2026-10-10', 'amount' => '50.00']);
     Payment::factory()->for($order)->create([
         'payment_date' => '2026-12-01', 'amount' => '25.00', 'payment_type' => 'full_payment',
@@ -183,35 +186,18 @@ test('order exports include details and all payments without duplicating financi
 
     $response->assertOk();
     $sheets = exportSheets($response);
-    $rows = exportRows($sheets['Orders']);
-    expect($rows)->toHaveCount(1);
-    expect($rows[0])->toMatchArray([
-        'Company name' => 'Acme Packaging', 'Contact person' => 'Alex Cruz', 'Contact number' => '09123456789',
-        'Address' => '123 Market Street', 'Order status' => 'Delivered', 'Payment status' => 'Partially paid',
-        'Due status' => 'Overdue', 'Overdue' => 'Yes', 'Days overdue' => '1', 'Terms of payment' => 'Net 30',
-        'Order total (PHP)' => '175.00', 'Total paid (PHP)' => '75.00', 'Balance (PHP)' => '100.00',
-        'Items' => '2', 'Payments' => '2', 'Delivery recipient' => 'Alex Cruz', 'Delivery notes' => 'Complete delivery',
-        'Delivery confirmed by' => 'Export Administrator', 'Created by' => 'Export Administrator',
-    ]);
-    expect(exportRows($sheets['Order Items']))->toHaveCount(2);
-    expect(exportRows($sheets['Order Items'])[0])->toMatchArray([
-        'Quantity' => '100', 'Unit' => 'pcs', 'Unit price (PHP)' => '1.25', 'Subtotal (PHP)' => '125.00',
-        'Material / color' => 'LDPE / transparent', 'Size' => '8 x 12 inches / 0.03 mm',
-        'Print / design / colors' => 'Company logo / 2 colors', 'Sealing' => 'Bottom Seal', 'Puncher' => 'None',
-        'Stock availability' => 'Available', 'Production status' => 'Ready for delivery', 'Ready check required' => 'No',
-    ]);
-    expect(array_column(exportRows($sheets['Payments']), 'Amount (PHP)'))->toBe(['50.00', '25.00']);
-    expect(exportRows($sheets['Payments'])[1]['Receipt filename'])->toBe('receipt.pdf');
-    expect(exportMetrics($sheets['Overview']))->toMatchArray([
-        'Order value (PHP)' => '175.00', 'Total paid (PHP)' => '75.00', 'Outstanding balance (PHP)' => '100.00',
-        'Overdue balance (PHP)' => '100.00', 'Overdue orders' => '1',
-    ]);
-    foreach ($sheets as $sheet) {
-        expect($sheet->document->textContent)->not->toContain('private-receipt-path', 'private-bucket', $this->admin->password);
-    }
+    expect(exportRows($sheets['Orders']))->toBe([[
+        'Order Status' => 'Delivered', 'Order ID' => 'ORD-2026-0001',
+        'Customer Name' => 'Acme Packaging', 'Order Date' => '46329',
+        'Order Items' => 'Transparent Bags, Paper Bags',
+        'Remarks' => 'Transparent Bags: Pack in bundles of 100.; Paper Bags: Confirm size before packing.',
+        'Balance' => '100.00', 'Total Amount' => '175.00', 'Terms of Payment' => 'Net 30',
+        'Payment Status' => 'Partially paid (Overdue)',
+    ]]);
+    expect($sheets['Orders']->document->textContent)->not->toContain('private-receipt-path', 'private-bucket', $this->admin->password);
 });
 
-test('overdue and payment statuses use actual balances and the reporting day', function (?string $dueDate, string $paid, string $dueStatus, string $paymentStatus, string $balance, string $overdue): void {
+test('overdue and payment statuses use actual balances and the reporting day', function (?string $dueDate, string $paid, string $dueStatus, string $paymentStatus, string $balance): void {
     $this->travelTo(new DateTimeImmutable('2026-11-04 17:00:00 UTC'));
     $order = Order::factory()->hasItems(1)->create([
         'order_date' => '2026-11-01', 'payment_due_date' => $dueDate, 'due_date' => '2026-11-01',
@@ -226,19 +212,19 @@ test('overdue and payment statuses use actual balances and the reporting day', f
     $response->assertOk();
     $sheets = exportSheets($response);
     expect(exportRows($sheets['Orders'])[0])->toMatchArray([
-        'Due status' => $dueStatus, 'Payment status' => $paymentStatus, 'Balance (PHP)' => $balance, 'Overdue' => $overdue,
+        'Payment Status' => $paymentStatus.' ('.$dueStatus.')', 'Balance' => $balance,
     ]);
 })->with([
-    'past due unpaid' => ['2026-11-04', '0.00', 'Overdue', 'Unpaid', '125.00', 'Yes'],
-    'due today' => ['2026-11-05', '0.00', 'Due today', 'Unpaid', '125.00', 'No'],
-    'future due' => ['2026-11-06', '0.00', 'Not overdue', 'Unpaid', '125.00', 'No'],
-    'no payment due date' => [null, '0.00', 'No due date', 'Unpaid', '125.00', 'No'],
-    'settled past due' => ['2026-11-04', '125.00', 'Settled', 'Fully paid', '0.00', 'No'],
-    'underpaid full-payment label' => ['2026-11-04', '50.00', 'Overdue', 'Partially paid', '75.00', 'Yes'],
-    'legacy overpayment' => ['2026-11-04', '150.00', 'Settled', 'Fully paid', '0.00', 'No'],
+    'past due unpaid' => ['2026-11-04', '0.00', 'Overdue', 'Unpaid', '125.00'],
+    'due today' => ['2026-11-05', '0.00', 'Due today', 'Unpaid', '125.00'],
+    'future due' => ['2026-11-06', '0.00', 'Not overdue', 'Unpaid', '125.00'],
+    'no payment due date' => [null, '0.00', 'No due date', 'Unpaid', '125.00'],
+    'settled past due' => ['2026-11-04', '125.00', 'Settled', 'Fully paid', '0.00'],
+    'underpaid full-payment label' => ['2026-11-04', '50.00', 'Overdue', 'Partially paid', '75.00'],
+    'legacy overpayment' => ['2026-11-04', '150.00', 'Settled', 'Fully paid', '0.00'],
 ]);
 
-test('fractional item subtotals are rounded per line and legacy units are retained', function (): void {
+test('fractional item subtotals are rounded per line when exporting legacy quantities', function (): void {
     $order = Order::factory()->create(['order_date' => '2026-11-01']);
     OrderItem::factory()->for($order)->count(3)->sequence(
         ['quantity' => '2.35 kgs', 'unit_price' => '1.25'],
@@ -250,24 +236,22 @@ test('fractional item subtotals are rounded per line and legacy units are retain
 
     $response->assertOk();
     $sheets = exportSheets($response);
-    expect(array_column(exportRows($sheets['Order Items']), 'Subtotal (PHP)'))->toBe(['2.94', '0.01', '3.75']);
-    expect(array_column(exportRows($sheets['Order Items']), 'Unit'))->toBe(['kgs', 'kgs', 'pcs']);
-    expect(exportRows($sheets['Orders'])[0]['Order total (PHP)'])->toBe('6.70');
+    expect(exportRows($sheets['Orders'])[0])->toMatchArray(['Total Amount' => '6.70', 'Balance' => '6.70']);
 });
 
-test('empty date ranges return complete usable workbooks with zero totals', function (string $type, array $detailSheets): void {
+test('empty date ranges keep the template headings and remove all sample data', function (string $type, string $sheetName): void {
     $response = $this->post('/exports/'.$type, ['date_from' => '2026-11-01', 'date_to' => '2026-11-01']);
 
     $response->assertOk()->assertDownload();
     $sheets = exportSheets($response);
-    foreach ($detailSheets as $name) {
-        expect(exportRows($sheets[$name]))->toBe([]);
-        expect($sheets[$name]->document->textContent)->toContain('No records match the selected date range.');
-    }
-    expect(exportMetrics($sheets['Overview'])[ucfirst($type).' exported'])->toBe('0');
+    expect(array_keys($sheets))->toBe([$sheetName]);
+    expect(exportRows($sheets[$sheetName]))->toBe([]);
+    expect($sheets[$sheetName]->evaluate('count(//s:row[@r="7"]/s:c)'))->toBe(10.0);
+    expect($sheets[$sheetName]->document->textContent)->toContain('OMS', 'Export Administrator')
+        ->not->toContain('Batista', 'ORD-2026-0004', '[Remarks]', '[Balance]', '[Total Amount]', 'Name of Exporter');
 })->with([
-    'clients' => ['clients', ['Clients']],
-    'orders' => ['orders', ['Orders', 'Clients', 'Order Items', 'Payments']],
+    'clients' => ['clients', 'Clients'],
+    'orders' => ['orders', 'Orders'],
 ]);
 
 test('invalid export dates return clear validation messages', function (array $payload, array $errors): void {
@@ -327,13 +311,10 @@ test('exports keep all rows across database batches and clean files after downlo
     DB::disableQueryLog();
     $response->assertOk();
     $sheets = exportSheets($response);
-    expect(exportRows($sheets['Orders']))->toHaveCount(205);
-    expect(exportRows($sheets['Order Items']))->toHaveCount(205);
-    expect(exportRows($sheets['Payments']))->toHaveCount(205);
-    expect(exportRows($sheets['Clients']))->toHaveCount(1);
-    expect(exportMetrics($sheets['Overview']))->toMatchArray([
-        'Order value (PHP)' => '25625.00', 'Total paid (PHP)' => '5125.00', 'Outstanding balance (PHP)' => '20500.00',
-    ]);
+    $rows = exportRows($sheets['Orders']);
+    expect($rows)->toHaveCount(205);
+    expect((float) array_sum(array_column($rows, 'Total Amount')))->toBe(25625.0);
+    expect((float) array_sum(array_column($rows, 'Balance')))->toBe(20500.0);
     expect(count($queries))->toBeLessThan(20);
     expect(glob(sys_get_temp_dir().DIRECTORY_SEPARATOR.'oms-export-*'))->toBe($before);
 });

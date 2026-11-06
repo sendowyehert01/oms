@@ -4,7 +4,7 @@ use App\ExcelWorkbook;
 
 function testWorkbook(): ExcelWorkbook
 {
-    return new ExcelWorkbook('OMS | Test report', 'Nov 1, 2026 to Nov 5, 2026', 'Alex Cruz', new DateTimeImmutable('2026-11-05 16:00:00 +08:00'), 'Asia/Manila');
+    return new ExcelWorkbook('List of Orders', 'Nov 1, 2026 to Nov 5, 2026', 'Alex Cruz', new DateTimeImmutable('2026-11-05 16:00:00 +08:00'), 'Asia/Manila');
 }
 
 function workbookXml(PharData $archive, string $path): DOMXPath
@@ -17,43 +17,54 @@ function workbookXml(PharData $archive, string $path): DOMXPath
     return $xpath;
 }
 
-test('Excel workbooks package readable worksheets with professional report formatting', function (): void {
+test('Excel workbooks preserve the supplied template and replace placeholders with report data', function (): void {
     $workbook = testWorkbook();
     $sheet = $workbook->addSheet('Orders', [
-        ['label' => 'Order number', 'width' => 24],
-        ['label' => 'Balance (PHP)', 'width' => 20, 'type' => 'money'],
-        ['label' => 'Payment due', 'width' => 18, 'type' => 'date'],
-        ['label' => 'Due status', 'width' => 20, 'type' => 'status'],
+        ['label' => 'Order Status'], ['label' => 'Order ID'], ['label' => 'Customer Name'],
+        ['label' => 'Order Date', 'type' => 'date'], ['label' => 'Order Items'], ['label' => 'Remarks'],
+        ['label' => 'Balance', 'type' => 'money'], ['label' => 'Total Amount', 'type' => 'money'],
+        ['label' => 'Terms of Payment'], ['label' => 'Payment Status'],
     ]);
-    $sheet->appendRow(['ORD-1', '75.25', '2026-11-04', 'Overdue']);
-    $sheet->appendRow(['ORD-2', '0.00', null, 'Settled']);
+    $sheet->appendRow(['Pending', 'ORD-2026-0001', 'Acme', '2026-11-04', 'Plastic bags', 'Bundle 100', '75.25', '125.00', 'Net 30', 'Partially paid (Overdue)']);
+    $sheet->appendRow(['Completed', 'ORD-2026-0002', 'Beta', null, 'Mailers', null, '0.00', '50.00', 'Cash', 'Fully paid (Settled)']);
 
     try {
         $path = $workbook->build();
         $archive = new PharData($path);
+        $template = new PharData(__DIR__.'/../../resources/list-of-orders.xlsx');
         $xml = workbookXml($archive, 'xl/worksheets/sheet1.xml');
-        $styles = workbookXml($archive, 'xl/styles.xml');
+        $templateXml = workbookXml($template, 'xl/worksheets/sheet1.xml');
 
         expect(file_get_contents($path, false, null, 0, 2))->toBe('PK');
         expect($archive->offsetExists('[Content_Types].xml'))->toBeTrue();
         expect($archive->offsetExists('xl/_rels/workbook.xml.rels'))->toBeTrue();
-        expect($xml->evaluate('string(//s:c[@r="A1"]/s:is/s:t)'))->toBe('OMS | Test report | Orders');
-        expect($xml->evaluate('string(//s:autoFilter/@ref)'))->toBe('A7:D9');
-        expect($xml->evaluate('string(//s:pane/@ySplit)'))->toBe('7');
-        expect($xml->evaluate('string(//s:pane/@topLeftCell)'))->toBe('B8');
-        expect($xml->evaluate('string(//s:pageSetup/@orientation)'))->toBe('landscape');
-        expect($xml->evaluate('string(//s:c[@r="B8"]/s:v)'))->toBe('75.25');
-        expect($xml->evaluate('string(//s:c[@r="C8"]/s:v)'))->toBe('46330');
-        expect($xml->evaluate('string(//s:c[@r="A8"]/@s)'))->not->toBe($xml->evaluate('string(//s:c[@r="A9"]/@s)'));
-        expect($xml->evaluate('string(//s:c[@r="D8"]/@s)'))->not->toBe($xml->evaluate('string(//s:c[@r="D9"]/@s)'));
-        expect($styles->evaluate('string(//s:numFmt[@numFmtId="164"]/@formatCode)'))->toContain('PHP', '#,##0.00');
-        expect($styles->evaluate('string(//s:fill[3]/s:patternFill/s:fgColor/@rgb)'))->toBe('FF730E10');
+        expect($archive->offsetExists('xl/sharedStrings.xml'))->toBeFalse();
+        expect($archive['xl/styles.xml']->getContent())->toBe($template['xl/styles.xml']->getContent());
+        expect($archive['xl/theme/theme1.xml']->getContent())->toBe($template['xl/theme/theme1.xml']->getContent());
+        foreach (['cols', 'mergeCells', 'pageMargins', 'sheetFormatPr', 'sheetViews'] as $element) {
+            expect($xml->query('//s:'.$element)->item(0)->C14N())->toBe($templateXml->query('//s:'.$element)->item(0)->C14N());
+        }
+        foreach ($templateXml->query('//s:row[number(@r) <= 7]/s:c') as $cell) {
+            $reference = $cell->getAttribute('r');
+            expect($xml->evaluate('string(//s:c[@r="'.$reference.'"]/@s)'))->toBe($cell->getAttribute('s'));
+        }
+        expect($xml->evaluate('string(//s:c[@r="A1"]/s:is/s:t)'))->toBe('OMS');
+        expect($xml->evaluate('string(//s:c[@r="A2"]/s:is/s:t)'))->toBe('Alex Cruz');
+        expect($xml->evaluate('string(//s:c[@r="A3"]/s:is/s:t)'))->toBe('Nov 5, 2026 4:00 PM (Asia/Manila)');
+        expect($xml->evaluate('string(//s:c[@r="A5"]/s:is/s:t)'))->toBe('List of Orders');
+        expect($xml->evaluate('string(//s:c[@r="A6"]/s:is/s:t)'))->toBe('Nov 1, 2026 to Nov 5, 2026');
+        expect($xml->evaluate('string(//s:dimension/@ref)'))->toBe('A1:J9');
+        expect($xml->evaluate('string(//s:c[@r="G8"]/s:v)'))->toBe('75.25');
+        expect($xml->evaluate('string(//s:c[@r="D8"]/s:v)'))->toBe('46330');
+        expect($xml->evaluate('string(//s:c[@r="D8"]/@s)'))->toBe('8');
+        expect($xml->evaluate('string(//s:c[@r="A8"]/@s)'))->toBe($xml->evaluate('string(//s:c[@r="A9"]/@s)'));
+        expect($xml->evaluate('string(//s:c[@r="J8"]/@s)'))->toBe($xml->evaluate('string(//s:c[@r="J9"]/@s)'));
         foreach (new RecursiveIteratorIterator($archive) as $entry) {
             $document = new DOMDocument;
             expect($document->loadXML($entry->getContent()))->toBeTrue();
         }
     } finally {
-        unset($archive, $entry);
+        unset($archive, $template, $entry);
         $workbook->cleanup();
     }
 
@@ -63,7 +74,7 @@ test('Excel workbooks package readable worksheets with professional report forma
 test('literal text preserves leading zeros and spreadsheet formulas without executing them', function (): void {
     $workbook = testWorkbook();
     $sheet = $workbook->addSheet('Clients', [
-        ['label' => 'Company', 'width' => 30], ['label' => 'Phone', 'width' => 20], ['label' => 'Address', 'width' => 30],
+        ['label' => 'Company'], ['label' => 'Phone'], ['label' => 'Address'],
     ]);
     $sheet->appendRow(['=HYPERLINK("https://example.com", "Click")', '09123456789', "A & B <C>\x00\nMakati"]);
 
@@ -84,7 +95,7 @@ test('literal text preserves leading zeros and spreadsheet formulas without exec
 
 test('numeric values exceeding Excel precision retain every cent as literal decimals', function (): void {
     $workbook = testWorkbook();
-    $sheet = $workbook->addSheet('Totals', [['label' => 'Amount (PHP)', 'width' => 24, 'type' => 'money']]);
+    $sheet = $workbook->addSheet('Totals', [['label' => 'Amount (PHP)', 'type' => 'money']]);
     $sheet->appendRow(['12345678901234.56']);
 
     try {
@@ -99,16 +110,20 @@ test('numeric values exceeding Excel precision retain every cent as literal deci
     }
 });
 
-test('empty worksheets remain valid and explain that no records matched', function (): void {
+test('empty worksheets remain valid with the template design and no sample records', function (): void {
     $workbook = testWorkbook();
-    $sheet = $workbook->addSheet('Clients', [['label' => 'Company', 'width' => 30], ['label' => 'Phone', 'width' => 20]]);
+    $sheet = $workbook->addSheet('Clients', [['label' => 'Company'], ['label' => 'Phone']]);
 
     try {
         $archive = new PharData($workbook->build());
         $xml = workbookXml($archive, 'xl/worksheets/sheet1.xml');
 
-        expect($xml->evaluate('string(//s:c[@r="A8"]/s:is/s:t)'))->toBe('No records match the selected date range.');
-        expect($xml->evaluate('count(//s:autoFilter)'))->toBe(0.0);
+        expect($sheet->count())->toBe(0);
+        expect($xml->evaluate('count(//s:row[number(@r) > 7]/s:c[s:v or s:is])'))->toBe(0.0);
+        expect($xml->evaluate('count(//s:mergeCell)'))->toBe(6.0);
+        expect($xml->evaluate('string(//s:dimension/@ref)'))->toBe('A1:J8');
+        expect($archive->offsetExists('xl/sharedStrings.xml'))->toBeFalse();
+        expect($xml->document->textContent)->not->toContain('Batista', 'ORD-2026-0004', '[Remarks]');
     } finally {
         unset($archive);
         $workbook->cleanup();
@@ -120,7 +135,7 @@ test('empty worksheets remain valid and explain that no records matched', functi
 
 test('cleanup removes unfinished worksheets after invalid data interrupts report writing', function (): void {
     $workbook = testWorkbook();
-    $sheet = $workbook->addSheet('Orders', [['label' => 'Amount', 'width' => 20, 'type' => 'money']]);
+    $sheet = $workbook->addSheet('Orders', [['label' => 'Amount', 'type' => 'money']]);
 
     try {
         expect(fn () => $sheet->appendRow(['invalid']))->toThrow(InvalidArgumentException::class);
@@ -131,19 +146,22 @@ test('cleanup removes unfinished worksheets after invalid data interrupts report
     expect(is_dir(dirname($sheet->path())))->toBeFalse();
 });
 
-test('long notes get enough row height to stay readable', function (): void {
+test('long notes retain their complete text and the template row formatting', function (): void {
     $workbook = testWorkbook();
-    $sheet = $workbook->addSheet('Notes', [['label' => 'Notes', 'width' => 26]]);
+    $sheet = $workbook->addSheet('Notes', [['label' => 'Notes']]);
     $sheet->appendRow(["First line\nSecond line\nThird line\nFourth line"]);
 
     try {
         $archive = new PharData($workbook->build());
+        $template = new PharData(__DIR__.'/../../resources/list-of-orders.xlsx');
         $xml = workbookXml($archive, 'xl/worksheets/sheet1.xml');
+        $templateXml = workbookXml($template, 'xl/worksheets/sheet1.xml');
 
-        expect((int) $xml->evaluate('string(//s:row[@r="8"]/@ht)'))->toBeGreaterThanOrEqual(60);
+        expect($xml->evaluate('string(//s:row[@r="8"]/@ht)'))->toBe($templateXml->evaluate('string(//s:row[@r="8"]/@ht)'));
+        expect($xml->evaluate('string(//s:c[@r="A8"]/@s)'))->toBe($templateXml->evaluate('string(//s:c[@r="A8"]/@s)'));
         expect($xml->evaluate('string(//s:c[@r="A8"]/s:is/s:t)'))->toBe("First line\nSecond line\nThird line\nFourth line");
     } finally {
-        unset($archive);
+        unset($archive, $template);
         $workbook->cleanup();
     }
 });
@@ -153,7 +171,7 @@ test('cleanup also removes worksheets whose heading construction failed', functi
     $workbook = testWorkbook();
 
     try {
-        expect(fn () => $workbook->addSheet('Broken', [['label' => new stdClass, 'width' => 20]]))->toThrow(TypeError::class);
+        expect(fn () => $workbook->addSheet('Broken', [['label' => new stdClass]]))->toThrow(TypeError::class);
     } finally {
         $workbook->cleanup();
     }

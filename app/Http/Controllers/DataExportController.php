@@ -44,7 +44,7 @@ class DataExportController extends Controller
                 ->withErrors(['export' => 'The Excel report could not be generated. Please try again.'], $type);
         }
 
-        $filename = 'OMS-'.ucfirst($type).'-'.$filters['date_from'].'-to-'.$filters['date_to'].'.xlsx';
+        $filename = 'list-of-'.$type.'-'.$filters['date_from'].'-to-'.$filters['date_to'].'.xlsx';
 
         return response()->streamDownload(function () use ($workbook, $stream): void {
             try {

@@ -5,14 +5,18 @@ namespace App;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use InvalidArgumentException;
 use LengthException;
 use RuntimeException;
-use Throwable;
 
 class ExcelWorksheet
 {
     private const int HEADER_ROW = 7;
+
+    private const string SPREADSHEET_NAMESPACE = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
     /** @var resource|null */
     private mixed $stream = null;
@@ -21,55 +25,63 @@ class ExcelWorksheet
 
     private bool $finished = false;
 
-    /** @param list<array{label: string, width: int, type?: string}> $columns */
+    private readonly DOMDocument $document;
+
+    private readonly DOMElement $rowTemplate;
+
+    private readonly string $textStyle;
+
+    private readonly string $dateStyle;
+
+    /**
+     * @param  list<string>  $sharedStrings
+     * @param  list<array{label: string, type?: string}>  $columns
+     * @param  array<string, string>  $metadata
+     */
     public function __construct(
         private readonly string $filePath,
-        string $title,
-        string $period,
-        string $prepared,
+        string $templateXml,
+        array $sharedStrings,
         private readonly array $columns,
-        private readonly bool $filterable,
-        int $frozenColumns,
+        array $metadata,
     ) {
-        if (count($columns) < 1 || count($columns) > 16_384) {
-            throw new InvalidArgumentException('A worksheet must have between 1 and 16,384 columns.');
+        $this->document = ExcelWorkbook::document($templateXml);
+        $xpath = new DOMXPath($this->document);
+        $xpath->registerNamespace('s', self::SPREADSHEET_NAMESPACE);
+        $this->rowTemplate = $xpath->query('//s:row[@r="8"]')->item(0)->cloneNode(true);
+        $sampleCells = $this->rowTemplate->getElementsByTagName('c');
+
+        if (count($columns) < 1 || count($columns) > $sampleCells->length) {
+            throw new InvalidArgumentException('Worksheet columns must fit the template.');
         }
-        $this->stream = fopen($filePath, 'wb');
+        $this->textStyle = $sampleCells->item(0)->getAttribute('s');
+        $this->dateStyle = $sampleCells->item(3)->getAttribute('s');
+        foreach ($sampleCells as $cell) {
+            $this->clearCell($cell);
+        }
+        foreach ($xpath->query('//s:row[number(@r) > 7]') as $row) {
+            $row->parentNode->removeChild($row);
+        }
+        foreach ($xpath->query('//s:c[@t="s"]') as $cell) {
+            $this->setText($cell, $sharedStrings[(int) $cell->textContent]);
+        }
+        foreach ($metadata as $reference => $value) {
+            $this->setText($xpath->query('//s:c[@r="'.$reference.'"]')->item(0), $value);
+        }
+        foreach ($xpath->query('//s:row[@r="7"]/s:c') as $index => $cell) {
+            if (isset($columns[$index])) {
+                $this->setText($cell, $columns[$index]['label']);
+            } else {
+                $this->clearCell($cell);
+            }
+        }
+        $this->stream = fopen($filePath.'.rows', 'w+b');
         if ($this->stream === false) {
             throw new RuntimeException('The worksheet could not be created.');
         }
-        try {
-            $this->writeHeaders($title, $period, $prepared, $frozenColumns);
-        } catch (Throwable $exception) {
-            $this->close();
-
-            throw $exception;
-        }
     }
 
-    private function writeHeaders(string $title, string $period, string $prepared, int $frozenColumns): void
-    {
-        $frozenColumns = min(max(0, $frozenColumns), count($this->columns) - 1);
-        $firstCell = ExcelWorkbook::columnName($frozenColumns + 1).(self::HEADER_ROW + 1);
-        $this->write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView showGridLines="0" zoomScale="90" workbookViewId="0"><pane xSplit="'.$frozenColumns.'" ySplit="'.self::HEADER_ROW.'" topLeftCell="'.$firstCell.'" activePane="'.($frozenColumns === 0 ? 'bottomLeft' : 'bottomRight').'" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="18"/><cols>');
-        foreach ($this->columns as $index => $column) {
-            $position = $index + 1;
-            $this->write('<col min="'.$position.'" max="'.$position.'" width="'.$column['width'].'" customWidth="1"/>');
-        }
-        $this->write('</cols><sheetData>');
-        $this->write('<row r="1" ht="36" customHeight="1">'.$this->textCell('A1', $title, 1).'</row>');
-        $this->write('<row r="2" ht="22" customHeight="1">'.$this->textCell('A2', 'Date range: '.$period.' (inclusive)', 2).'</row>');
-        $this->write('<row r="3" ht="22" customHeight="1">'.$this->textCell('A3', $prepared, 3).'</row>');
-        $this->write('<row r="5" ht="22" customHeight="1">'.$this->textCell('A5', 'OMS | Philippine pesos (PHP) | Current records at the time of export', 3).'</row><row r="7" ht="34" customHeight="1">');
-        foreach ($this->columns as $index => $column) {
-            $this->write($this->textCell(ExcelWorkbook::columnName($index + 1).'7', $column['label'], 4));
-        }
-        $this->write('</row>');
-    }
-
-    /**
-     * @param  list<string|int|float|DateTimeInterface|null|array{value: string|int|float|DateTimeInterface|null, type: string}>  $values
-     */
+    /** @param list<string|int|float|DateTimeInterface|null|array{value: string|int|float|DateTimeInterface|null, type: string}> $values */
     public function appendRow(array $values): void
     {
         if ($this->finished || count($values) !== count($this->columns)) {
@@ -79,46 +91,7 @@ class ExcelWorksheet
             throw new LengthException('The export exceeds the Excel worksheet row limit.');
         }
         $this->dataRows++;
-        $row = $this->dataRows + self::HEADER_ROW;
-        $this->write('<row r="'.$row.'" ht="'.$this->rowHeight($values).'" customHeight="1">');
-        foreach ($values as $index => $value) {
-            $type = $this->columns[$index]['type'] ?? 'text';
-            if (is_array($value)) {
-                $type = $value['type'];
-                $value = $value['value'];
-            }
-            $reference = ExcelWorkbook::columnName($index + 1).$row;
-            $style = ExcelWorkbook::cellStyle($type, $this->dataRows % 2 === 0, is_scalar($value) ? (string) $value : null);
-            if ($value === null || $value === '') {
-                $this->write('<c r="'.$reference.'" s="'.$style.'"/>');
-            } elseif (in_array($type, ['date', 'datetime'], true)) {
-                $date = $value instanceof DateTimeInterface ? $value : new DateTimeImmutable((string) $value);
-                $wallTime = new DateTimeImmutable($date->format($type === 'date' ? 'Y-m-d 00:00:00' : 'Y-m-d H:i:s'), new DateTimeZone('UTC'));
-                if ((int) $wallTime->format('Y') < 1900) {
-                    $this->write($this->textCell($reference, $date->format('Y-m-d H:i:s'), $style));
-                } else {
-                    $serial = ($wallTime->getTimestamp() - (new DateTimeImmutable('1899-12-30', new DateTimeZone('UTC')))->getTimestamp()) / 86_400;
-                    if ($wallTime < new DateTimeImmutable('1900-03-01', new DateTimeZone('UTC'))) {
-                        $serial--;
-                    }
-                    $this->write('<c r="'.$reference.'" s="'.$style.'"><v>'.rtrim(rtrim(number_format($serial, 10, '.', ''), '0'), '.').'</v></c>');
-                }
-            } elseif (in_array($type, ['money', 'integer', 'decimal'], true)) {
-                $number = (string) $value;
-                if (! preg_match('/^-?\d+(?:\.\d+)?$/D', $number)) {
-                    throw new InvalidArgumentException('Numeric worksheet cells must contain a decimal number.');
-                }
-                $digits = ltrim(str_replace(['.', '-'], '', $number), '0');
-                if (strlen($digits) > 15) {
-                    $this->write($this->textCell($reference, $number, $style));
-                } else {
-                    $this->write('<c r="'.$reference.'" s="'.$style.'"><v>'.$number.'</v></c>');
-                }
-            } else {
-                $this->write($this->textCell($reference, $value instanceof DateTimeInterface ? $value->format('Y-m-d H:i:s') : (string) $value, $style));
-            }
-        }
-        $this->write('</row>');
+        $this->write($this->rowXml($values, $this->dataRows + self::HEADER_ROW));
     }
 
     public function finish(): void
@@ -126,26 +99,32 @@ class ExcelWorksheet
         if ($this->finished) {
             return;
         }
-        $lastColumn = ExcelWorkbook::columnName(count($this->columns));
         if ($this->dataRows === 0) {
-            $this->write('<row r="8" ht="32" customHeight="1">'.$this->textCell('A8', 'No records match the selected date range.', 5).'</row>');
+            $this->write($this->rowXml(array_fill(0, count($this->columns), null), self::HEADER_ROW + 1));
         }
-        $this->write('</sheetData>');
-        if ($this->filterable && $this->dataRows > 0) {
-            $this->write('<autoFilter ref="A7:'.$lastColumn.($this->dataRows + self::HEADER_ROW).'"/>');
+        $this->document->getElementsByTagName('dimension')->item(0)->setAttribute('ref', 'A1:J'.max(8, $this->dataRows + self::HEADER_ROW));
+        [$header, $footer] = explode('</sheetData>', $this->document->saveXML(), 2);
+        $output = fopen($this->filePath, 'wb');
+        if ($output === false) {
+            throw new RuntimeException('The worksheet could not be created.');
         }
-        $merges = count($this->columns) > 1 ? ['A1:'.$lastColumn.'1', 'A2:'.$lastColumn.'2', 'A3:'.$lastColumn.'3', 'A5:'.$lastColumn.'5'] : [];
-        if ($this->dataRows === 0 && count($this->columns) > 1) {
-            $merges[] = 'A8:'.$lastColumn.'8';
-        }
-        if ($merges !== []) {
-            $this->write('<mergeCells count="'.count($merges).'">');
-            foreach ($merges as $merge) {
-                $this->write('<mergeCell ref="'.$merge.'"/>');
+
+        try {
+            if (fwrite($output, $header) !== strlen($header)) {
+                throw new RuntimeException('The worksheet headings could not be written.');
             }
-            $this->write('</mergeCells>');
+            $length = ftell($this->stream);
+            rewind($this->stream);
+            if (stream_copy_to_stream($this->stream, $output) !== $length) {
+                throw new RuntimeException('The worksheet rows could not be written.');
+            }
+            $footer = '</sheetData>'.$footer;
+            if (fwrite($output, $footer) !== strlen($footer)) {
+                throw new RuntimeException('The worksheet footer could not be written.');
+            }
+        } finally {
+            fclose($output);
         }
-        $this->write('<pageMargins left="0.25" right="0.25" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/><headerFooter><oddFooter>'.ExcelWorkbook::escape('&LOMS&CPage &P of &N&RConfidential').'</oddFooter></headerFooter></worksheet>');
         $this->finished = true;
         $this->close();
     }
@@ -169,28 +148,77 @@ class ExcelWorksheet
     }
 
     /** @param list<string|int|float|DateTimeInterface|null|array{value: string|int|float|DateTimeInterface|null, type: string}> $values */
-    private function rowHeight(array $values): int
+    private function rowXml(array $values, int $number): string
     {
-        $lines = 1;
-        foreach ($values as $index => $value) {
-            $text = is_array($value) ? $value['value'] : $value;
-            if (! is_scalar($text)) {
+        $row = $this->rowTemplate->cloneNode(true);
+        $row->setAttribute('r', (string) $number);
+        foreach ($row->getElementsByTagName('c') as $index => $cell) {
+            $cell->setAttribute('r', preg_replace('/\d+/', (string) $number, $cell->getAttribute('r')));
+            $value = $values[$index] ?? null;
+            $type = $this->columns[$index]['type'] ?? 'text';
+            if (is_array($value)) {
+                $type = $value['type'];
+                $value = $value['value'];
+            }
+            $cell->setAttribute('s', in_array($type, ['date', 'datetime'], true) ? $this->dateStyle : $this->textStyle);
+            if ($value === null || $value === '') {
                 continue;
             }
-            $width = max(1, $this->columns[$index]['width'] - 2);
-            $wrappedLines = 0;
-            foreach (preg_split('/\r\n|\r|\n/', (string) $text) as $line) {
-                $wrappedLines += max(1, (int) ceil(mb_strwidth($line, 'UTF-8') / $width));
+            if (in_array($type, ['date', 'datetime'], true)) {
+                $date = $value instanceof DateTimeInterface ? $value : new DateTimeImmutable((string) $value);
+                $wallTime = new DateTimeImmutable($date->format($type === 'date' ? 'Y-m-d 00:00:00' : 'Y-m-d H:i:s'), new DateTimeZone('UTC'));
+                if ((int) $wallTime->format('Y') < 1900) {
+                    $this->setText($cell, $date->format('Y-m-d H:i:s'));
+                } else {
+                    $serial = ($wallTime->getTimestamp() - (new DateTimeImmutable('1899-12-30', new DateTimeZone('UTC')))->getTimestamp()) / 86_400;
+                    if ($wallTime < new DateTimeImmutable('1900-03-01', new DateTimeZone('UTC'))) {
+                        $serial--;
+                    }
+                    $this->setNumber($cell, rtrim(rtrim(number_format($serial, 10, '.', ''), '0'), '.'));
+                }
+            } elseif (in_array($type, ['money', 'integer', 'decimal'], true)) {
+                $numberValue = (string) $value;
+                if (! preg_match('/^-?\d+(?:\.\d+)?$/D', $numberValue)) {
+                    throw new InvalidArgumentException('Numeric worksheet cells must contain a decimal number.');
+                }
+                if (strlen(ltrim(str_replace(['.', '-'], '', $numberValue), '0')) > 15) {
+                    $this->setText($cell, $numberValue);
+                } else {
+                    $this->setNumber($cell, $numberValue);
+                }
+            } else {
+                $this->setText($cell, $value instanceof DateTimeInterface ? $value->format('Y-m-d H:i:s') : (string) $value);
             }
-            $lines = max($lines, $wrappedLines);
         }
 
-        return min(240, max(32, $lines * 15 + 8));
+        return $this->document->saveXML($row);
     }
 
-    private function textCell(string $reference, string $text, int $style): string
+    private function clearCell(DOMElement $cell): void
     {
-        return '<c r="'.$reference.'" s="'.$style.'" t="inlineStr"><is><t xml:space="preserve">'.ExcelWorkbook::escape($text).'</t></is></c>';
+        while ($cell->firstChild !== null) {
+            $cell->removeChild($cell->firstChild);
+        }
+        $cell->removeAttribute('t');
+    }
+
+    private function setText(DOMElement $cell, string $text): void
+    {
+        $this->clearCell($cell);
+        $cell->setAttribute('t', 'inlineStr');
+        $inline = $this->document->createElementNS(self::SPREADSHEET_NAMESPACE, 'is');
+        $value = $this->document->createElementNS(self::SPREADSHEET_NAMESPACE, 't');
+        $value->setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
+        $value->appendChild($this->document->createTextNode(ExcelWorkbook::literalText($text)));
+        $inline->appendChild($value);
+        $cell->appendChild($inline);
+    }
+
+    private function setNumber(DOMElement $cell, string $number): void
+    {
+        $value = $this->document->createElementNS(self::SPREADSHEET_NAMESPACE, 'v');
+        $value->appendChild($this->document->createTextNode($number));
+        $cell->appendChild($value);
     }
 
     private function write(string $xml): void
