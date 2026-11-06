@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BalanceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrderController;
@@ -18,6 +19,7 @@ Route::redirect('/login', '/')->name('home');
 
 Route::middleware('auth')->group(function (): void {
     Route::view('/account/password', 'auth.password')->name('account.password');
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])->middleware('can:view-audit-logs')->name('audit-logs.index');
     Route::get('/staff', [StaffController::class, 'index'])->middleware('can:manage-staff')->name('staff.index');
     Route::post('/staff', [StaffController::class, 'store'])->middleware('can:manage-staff')->name('staff.store');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');

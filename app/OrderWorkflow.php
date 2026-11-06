@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 
 class OrderWorkflow
 {
-    public function __construct(private readonly OrderDeliveryWorkflow $delivery) {}
+    public function __construct(private readonly OrderDeliveryWorkflow $delivery, private readonly AuditRecorder $audit) {}
 
     /** @param array<string, mixed> $data */
     public function update(Order $order, User $actor, array $data): Order
@@ -88,7 +88,7 @@ class OrderWorkflow
     /** @param array<string, mixed> $data */
     public function record(Order $order, User $actor, array $data, string $eventType, ?string $from, string $to, ?OrderItem $item = null, bool $additional = false, ?string $eventNotes = null): OrderStatusHistory
     {
-        return $order->statusHistory()->create([
+        $history = $order->statusHistory()->create([
             'actor_id' => $actor->id,
             'actor_name' => $actor->name,
             'order_item_id' => $item?->id,
@@ -100,6 +100,12 @@ class OrderWorkflow
             'submission_key' => $additional ? (string) Str::uuid() : $data['submission_key'],
             'request_hash' => $this->fingerprint($data),
         ]);
+
+        if (! $additional) {
+            $this->audit->workflowRecorded($order, $actor, $eventType, $to, $item);
+        }
+
+        return $history;
     }
 
     /** @param array<string, mixed> $data */
