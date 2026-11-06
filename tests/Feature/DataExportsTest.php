@@ -144,8 +144,13 @@ test('client exports include both reporting-date boundaries and preserve contact
     expect($rows[1]['Created Date'])->toBe('46331');
     expect($sheets['Clients']->evaluate('string(//s:c[@r="D8"]/@t)'))->toBe('inlineStr');
     expect($sheets['Clients']->evaluate('string(//s:c[@r="F8"]/@s)'))->toBe('8');
-    expect($sheets['Clients']->evaluate('count(//s:row[@r="7"]/s:c)'))->toBe(10.0);
-    expect($sheets['Clients']->evaluate('count(//s:row[@r="7"]/s:c[position() > 7]/s:is)'))->toBe(0.0);
+    expect($sheets['Clients']->evaluate('count(//s:row[@r="7"]/s:c)'))->toBe(7.0);
+    expect($sheets['Clients']->evaluate('count(//s:col)'))->toBe(7.0);
+    expect($sheets['Clients']->evaluate('count(//s:c[starts-with(@r, "H") or starts-with(@r, "I") or starts-with(@r, "J")])'))->toBe(0.0);
+    expect($sheets['Clients']->evaluate('string(//s:dimension/@ref)'))->toBe('A1:G9');
+    expect($sheets['Clients']->evaluate('count(//s:row[@spans="1:7"])'))->toBe(9.0);
+    expect($sheets['Clients']->evaluate('count(//s:mergeCell[contains(@ref, ":G")])'))->toBe(6.0);
+    expect($sheets['Clients']->evaluate('string(//s:c[@r="G4"]/@s)'))->toBe('5');
 });
 
 test('orders use their order date and include clients created outside the range', function (): void {
@@ -250,7 +255,12 @@ test('empty date ranges keep the template headings and remove all sample data', 
     $sheets = exportSheets($response);
     expect(array_keys($sheets))->toBe([$sheetName]);
     expect(exportRows($sheets[$sheetName]))->toBe([]);
-    expect($sheets[$sheetName]->evaluate('count(//s:row[@r="7"]/s:c)'))->toBe(10.0);
+    $columnCount = $type === 'clients' ? 7 : 10;
+    $lastColumn = $type === 'clients' ? 'G' : 'J';
+    expect($sheets[$sheetName]->evaluate('count(//s:row[@r="7"]/s:c)'))->toBe((float) $columnCount);
+    expect($sheets[$sheetName]->evaluate('count(//s:col)'))->toBe((float) $columnCount);
+    expect($sheets[$sheetName]->evaluate('string(//s:dimension/@ref)'))->toBe('A1:'.$lastColumn.'8');
+    expect($sheets[$sheetName]->evaluate('count(//s:mergeCell[contains(@ref, ":'.$lastColumn.'")])'))->toBe(6.0);
     expect($sheets[$sheetName]->document->textContent)->toContain('OMS', 'Export Administrator')
         ->not->toContain('Batista', 'ORD-2026-0004', '[Remarks]', '[Balance]', '[Total Amount]', 'Name of Exporter');
 })->with([

@@ -79,6 +79,7 @@ class ExcelWorksheet
                 $this->clearCell($cell);
             }
         }
+        $this->trimUnusedColumns();
         $this->stream = fopen($filePath.'.rows', 'w+b');
         if ($this->stream === false) {
             throw new RuntimeException('The worksheet could not be created.');
@@ -117,7 +118,8 @@ class ExcelWorksheet
                 $column->setAttribute('customWidth', '1');
             }
         }
-        $this->document->getElementsByTagName('dimension')->item(0)->setAttribute('ref', 'A1:J'.max(8, $this->dataRows + self::HEADER_ROW));
+        $lastColumn = chr(64 + count($this->columns));
+        $this->document->getElementsByTagName('dimension')->item(0)->setAttribute('ref', 'A1:'.$lastColumn.max(8, $this->dataRows + self::HEADER_ROW));
         [$header, $footer] = explode('</sheetData>', $this->document->saveXML(), 2);
         $output = fopen($this->filePath, 'wb');
         if ($output === false) {
@@ -219,6 +221,40 @@ class ExcelWorksheet
         foreach (preg_split('/\R/u', $text) as $line) {
             $width = mb_strwidth($line, 'UTF-8') * 1.1 + preg_match_all('/[MW@%&#]/u', $line) * 0.5 + 2;
             $this->columnWidths[$index] = max($this->columnWidths[$index] ?? 0, min(255, $width));
+        }
+    }
+
+    private function trimUnusedColumns(): void
+    {
+        $columnCount = count($this->columns);
+        $lastColumn = chr(64 + $columnCount);
+        foreach (iterator_to_array($this->document->getElementsByTagName('col')) as $column) {
+            if ((int) $column->getAttribute('min') > $columnCount) {
+                $column->parentNode->removeChild($column);
+            } elseif ((int) $column->getAttribute('max') > $columnCount) {
+                $column->setAttribute('max', (string) $columnCount);
+            }
+        }
+        $rows = iterator_to_array($this->document->getElementsByTagName('row'));
+        $rows[] = $this->rowTemplate;
+        foreach ($rows as $row) {
+            $cells = iterator_to_array($row->getElementsByTagName('c'));
+            if ($columnCount > 1 && count($cells) > $columnCount && (int) $row->getAttribute('r') < self::HEADER_ROW) {
+                $cells[$columnCount - 1]->setAttribute('s', $cells[array_key_last($cells)]->getAttribute('s'));
+            }
+            foreach (array_slice($cells, $columnCount) as $cell) {
+                $cell->parentNode->removeChild($cell);
+            }
+            $row->setAttribute('spans', '1:'.$columnCount);
+        }
+        $merges = $this->document->getElementsByTagName('mergeCells')->item(0);
+        if ($columnCount === 1) {
+            $merges->parentNode->removeChild($merges);
+
+            return;
+        }
+        foreach ($merges->getElementsByTagName('mergeCell') as $merge) {
+            $merge->setAttribute('ref', preg_replace('/[A-Z]+(?=\d+$)/', $lastColumn, $merge->getAttribute('ref')));
         }
     }
 

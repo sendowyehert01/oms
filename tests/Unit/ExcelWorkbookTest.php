@@ -128,11 +128,14 @@ test('empty worksheets remain valid with the template design and no sample recor
         expect($sheet->count())->toBe(0);
         expect($xml->evaluate('count(//s:row[number(@r) > 7]/s:c[s:v or s:is])'))->toBe(0.0);
         expect($xml->evaluate('count(//s:mergeCell)'))->toBe(6.0);
-        expect($xml->evaluate('string(//s:dimension/@ref)'))->toBe('A1:J8');
+        expect($xml->evaluate('string(//s:dimension/@ref)'))->toBe('A1:B8');
         expect($archive->offsetExists('xl/sharedStrings.xml'))->toBeFalse();
         $template = new PharData(__DIR__.'/../../resources/list-of-orders.xlsx');
         $templateXml = workbookXml($template, 'xl/worksheets/sheet1.xml');
-        expect($xml->query('//s:cols')->item(0)->C14N())->toBe($templateXml->query('//s:cols')->item(0)->C14N());
+        expect($xml->evaluate('count(//s:col)'))->toBe(2.0);
+        foreach ($xml->query('//s:col') as $index => $column) {
+            expect($column->C14N())->toBe($templateXml->query('//s:col')->item($index)->C14N());
+        }
         expect($xml->document->textContent)->not->toContain('Batista', 'ORD-2026-0004', '[Remarks]');
     } finally {
         unset($archive, $template);
@@ -243,7 +246,7 @@ test('all populated columns fit their headings and the longest value across ever
     }
 });
 
-test('column sizing handles multilingual and multiline text without widening unused or merged columns', function (): void {
+test('column sizing handles multilingual and multiline text without retaining unused columns or measuring merged metadata', function (): void {
     $workbook = testWorkbook();
     $sheet = $workbook->addSheet('Clients', [['label' => 'ID'], ['label' => 'Company'], ['label' => 'Address']]);
     $company = str_repeat('東京', 12);
@@ -252,19 +255,18 @@ test('column sizing handles multilingual and multiline text without widening unu
 
     try {
         $archive = new PharData($workbook->build());
-        $template = new PharData(__DIR__.'/../../resources/list-of-orders.xlsx');
         $xml = workbookXml($archive, 'xl/worksheets/sheet1.xml');
-        $templateXml = workbookXml($template, 'xl/worksheets/sheet1.xml');
         $columns = $xml->query('//s:col');
+        expect($columns->length)->toBe(3);
         expect((float) $columns->item(0)->getAttribute('width'))->toBeLessThan(20.0);
         expect((float) $columns->item(1)->getAttribute('width'))->toBeGreaterThan(mb_strwidth($company));
         expect((float) $columns->item(2)->getAttribute('width'))->toBeGreaterThan(mb_strwidth($line));
         expect((float) $columns->item(2)->getAttribute('width'))->toBeLessThan(mb_strwidth($line) * 2);
-        foreach ($templateXml->query('//s:col[number(@min) > 3]') as $column) {
-            expect($columns->item((int) $column->getAttribute('min') - 1)->C14N())->toBe($column->C14N());
-        }
+        expect($xml->evaluate('count(//s:c)'))->toBe(24.0);
+        expect($xml->evaluate('count(//s:mergeCell[contains(@ref, ":C")])'))->toBe(6.0);
+        expect($xml->evaluate('string(//s:dimension/@ref)'))->toBe('A1:C8');
     } finally {
-        unset($archive, $template);
+        unset($archive);
         $workbook->cleanup();
     }
 });
