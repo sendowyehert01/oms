@@ -79,7 +79,9 @@ test('listing saved orders uses a constant query count as the number of orders g
 
     $response->assertOk()->assertSee('Saved orders')->assertDontSee('Sample orders');
     expect($response['orders']->total())->toBe($orderCount);
-    expect($queries)->toHaveCount(4);
+    expect($queries)->toHaveCount(5);
+    $this->assertDatabaseCount('audit_logs', 1);
+    $this->assertDatabaseHas('audit_logs', ['action' => 'tab_switched', 'subject_name' => 'Orders']);
 })->with([
     'single order' => [1],
     'multiple pages' => [12],

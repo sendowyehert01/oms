@@ -1,10 +1,10 @@
-@props(['paginator'])
+@props(['paginator', 'resourceLabel' => 'orders'])
 
 <div class="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-4 py-5 sm:flex-row sm:px-6 dark:border-slate-800">
-    <p class="text-sm text-slate-500 dark:text-slate-400" role="status">Showing {{ $paginator->firstItem() ?? 0 }} to {{ $paginator->lastItem() ?? 0 }} of {{ $paginator->total() }} orders</p>
+    <p class="text-sm text-slate-500 dark:text-slate-400" role="status">Showing {{ $paginator->firstItem() ?? 0 }} to {{ $paginator->lastItem() ?? 0 }} of {{ $paginator->total() }} {{ $resourceLabel }}</p>
 
     @if ($paginator->total() > 0)
-        <nav aria-label="Orders pagination" class="flex flex-wrap items-center justify-center gap-1">
+        <nav aria-label="{{ ucfirst($resourceLabel) }} pagination" class="flex flex-wrap items-center justify-center gap-1">
             @if ($paginator->onFirstPage())
                 <span aria-disabled="true" class="inline-flex min-h-11 items-center rounded-lg px-3 text-sm text-slate-400 dark:text-slate-600">Previous</span>
             @else

@@ -162,7 +162,9 @@ test('dashboard query count and loaded records remain bounded as data grows', fu
     } finally {
         DB::disableQueryLog();
     }
-    expect($queries)->toHaveCount(16);
+    expect($queries)->toHaveCount(17);
+    $this->assertDatabaseCount('audit_logs', 1);
+    $this->assertDatabaseHas('audit_logs', ['actor_id' => $staff->id, 'action' => 'tab_switched', 'subject_name' => 'Dashboard']);
     expect($response['orders']->count())->toBe(min(5, $count));
     expect($response['outstanding']['orders']->count())->toBeLessThanOrEqual(5);
     foreach ($response['outstanding']['orders'] as $order) {

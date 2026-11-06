@@ -35,7 +35,7 @@ class PaymentController extends Controller
     public function store(StorePaymentRequest $request, Order $order, PaymentEntries $paymentEntries): RedirectResponse
     {
         try {
-            $paymentEntries->create($order->id, $request->validated());
+            $paymentEntries->create($order->id, $request->validated(), $request->user());
         } catch (ValidationException $exception) {
             throw $exception->redirectTo(route('orders.payments.create', ['order' => $order]));
         } catch (Throwable $exception) {

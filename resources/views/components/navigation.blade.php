@@ -51,6 +51,12 @@
                     Staff accounts
                 </a>
             @endcan
+            @can('view-audit-logs')
+                <a href="{{ route('audit-logs.index') }}" @if (request()->routeIs('audit-logs.*')) aria-current="page" @endif class="workspace-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 4H5v17h14V4h-3M8 3h8v4H8zM8 12h8m-8 4h5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                    Audit Logs
+                </a>
+            @endcan
         </nav>
         <div class="sidebar-note"><span class="text-gold-400" aria-hidden="true">✦</span><p><strong>One workspace.<br>Every order.</strong></p><p>Keep your clients, orders, and payments connected.</p></div>
     </aside>
