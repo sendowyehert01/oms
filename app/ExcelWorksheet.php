@@ -23,6 +23,9 @@ class ExcelWorksheet
 
     private int $dataRows = 0;
 
+    /** @var array<int, float> */
+    private array $columnWidths = [];
+
     private bool $finished = false;
 
     private readonly DOMDocument $document;
@@ -71,6 +74,7 @@ class ExcelWorksheet
         foreach ($xpath->query('//s:row[@r="7"]/s:c') as $index => $cell) {
             if (isset($columns[$index])) {
                 $this->setText($cell, $columns[$index]['label']);
+                $this->measureColumn($index, $columns[$index]['label']);
             } else {
                 $this->clearCell($cell);
             }
@@ -101,6 +105,17 @@ class ExcelWorksheet
         }
         if ($this->dataRows === 0) {
             $this->write($this->rowXml(array_fill(0, count($this->columns), null), self::HEADER_ROW + 1));
+        }
+        if ($this->dataRows > 0) {
+            foreach ($this->document->getElementsByTagName('col') as $index => $column) {
+                if (! isset($this->columnWidths[$index])) {
+                    continue;
+                }
+                $width = min(255, max((float) $column->getAttribute('width'), $this->columnWidths[$index]));
+                $column->setAttribute('width', (string) (ceil($width * 256) / 256));
+                $column->setAttribute('bestFit', '1');
+                $column->setAttribute('customWidth', '1');
+            }
         }
         $this->document->getElementsByTagName('dimension')->item(0)->setAttribute('ref', 'A1:J'.max(8, $this->dataRows + self::HEADER_ROW));
         [$header, $footer] = explode('</sheetData>', $this->document->saveXML(), 2);
@@ -164,17 +179,20 @@ class ExcelWorksheet
             if ($value === null || $value === '') {
                 continue;
             }
+            $displayText = $value instanceof DateTimeInterface ? $value->format('Y-m-d H:i:s') : (string) $value;
             if (in_array($type, ['date', 'datetime'], true)) {
                 $date = $value instanceof DateTimeInterface ? $value : new DateTimeImmutable((string) $value);
                 $wallTime = new DateTimeImmutable($date->format($type === 'date' ? 'Y-m-d 00:00:00' : 'Y-m-d H:i:s'), new DateTimeZone('UTC'));
                 if ((int) $wallTime->format('Y') < 1900) {
                     $this->setText($cell, $date->format('Y-m-d H:i:s'));
+                    $displayText = $date->format('Y-m-d H:i:s');
                 } else {
                     $serial = ($wallTime->getTimestamp() - (new DateTimeImmutable('1899-12-30', new DateTimeZone('UTC')))->getTimestamp()) / 86_400;
                     if ($wallTime < new DateTimeImmutable('1900-03-01', new DateTimeZone('UTC'))) {
                         $serial--;
                     }
                     $this->setNumber($cell, rtrim(rtrim(number_format($serial, 10, '.', ''), '0'), '.'));
+                    $displayText = $date->format('j-M-y');
                 }
             } elseif (in_array($type, ['money', 'integer', 'decimal'], true)) {
                 $numberValue = (string) $value;
@@ -187,11 +205,21 @@ class ExcelWorksheet
                     $this->setNumber($cell, $numberValue);
                 }
             } else {
-                $this->setText($cell, $value instanceof DateTimeInterface ? $value->format('Y-m-d H:i:s') : (string) $value);
+                $this->setText($cell, $displayText);
             }
+            $this->measureColumn($index, $displayText);
         }
 
         return $this->document->saveXML($row);
+    }
+
+    private function measureColumn(int $index, string $text): void
+    {
+        $text = str_replace("\t", '    ', ExcelWorkbook::literalText($text));
+        foreach (preg_split('/\R/u', $text) as $line) {
+            $width = mb_strwidth($line, 'UTF-8') * 1.1 + preg_match_all('/[MW@%&#]/u', $line) * 0.5 + 2;
+            $this->columnWidths[$index] = max($this->columnWidths[$index] ?? 0, min(255, $width));
+        }
     }
 
     private function clearCell(DOMElement $cell): void

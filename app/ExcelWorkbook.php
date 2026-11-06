@@ -105,6 +105,7 @@ class ExcelWorkbook
         }
         $archive->compressFiles(Phar::GZ);
         unset($archive);
+        $this->normalizeZipVersions($path);
 
         return $path;
     }
@@ -187,5 +188,49 @@ class ExcelWorkbook
         $document->getElementsByTagName('Company')->item(0)->textContent = 'OMS';
 
         return $document->saveXML();
+    }
+
+    /**
+     * Phar writes zero ZIP versions; DEFLATE entries require ZIP 2.0 for Excel.
+     * Update both header types without changing any workbook content.
+     */
+    private function normalizeZipVersions(string $path): void
+    {
+        $stream = fopen($path, 'r+b');
+        if ($stream === false) {
+            throw new RuntimeException('The Excel archive could not be opened.');
+        }
+
+        try {
+            if (fseek($stream, -22, SEEK_END) !== 0) {
+                throw new RuntimeException('The Excel archive directory could not be read.');
+            }
+            $end = fread($stream, 22);
+            if (strlen($end) !== 22 || substr($end, 0, 4) !== "PK\x05\x06") {
+                throw new RuntimeException('The Excel archive directory is invalid.');
+            }
+            $entryCount = unpack('v', substr($end, 10, 2))[1];
+            $offset = unpack('V', substr($end, 16, 4))[1];
+
+            for ($index = 0; $index < $entryCount; $index++) {
+                if (fseek($stream, $offset) !== 0) {
+                    throw new RuntimeException('The Excel archive entry could not be read.');
+                }
+                $header = fread($stream, 46);
+                if (strlen($header) !== 46 || substr($header, 0, 4) !== "PK\x01\x02") {
+                    throw new RuntimeException('The Excel archive entry is invalid.');
+                }
+                $localOffset = unpack('V', substr($header, 42, 4))[1];
+                foreach ([$offset + 4 => pack('vv', 20, 20), $localOffset + 4 => pack('v', 20)] as $position => $version) {
+                    if (fseek($stream, $position) !== 0 || fwrite($stream, $version) !== strlen($version)) {
+                        throw new RuntimeException('The Excel archive versions could not be written.');
+                    }
+                }
+                $lengths = unpack('vname/vextra/vcomment', substr($header, 28, 6));
+                $offset += 46 + $lengths['name'] + $lengths['extra'] + $lengths['comment'];
+            }
+        } finally {
+            fclose($stream);
+        }
     }
 }
