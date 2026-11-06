@@ -5,14 +5,16 @@ namespace App;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class PaymentEntries
 {
-    public function __construct(private readonly PaymentReceiptStorage $receiptStorage) {}
+    public function __construct(private readonly PaymentReceiptStorage $receiptStorage, private readonly AuditRecorder $audit) {}
 
     /**
      * @return array{total_amount_in_cents: int, total_paid_in_cents: int, balance_in_cents: int, status: string, payments: array<int, array{id: int, date: string, amount_in_cents: int, type: string, receipt_name: ?string, receipt_url: ?string}>}
@@ -40,14 +42,19 @@ class PaymentEntries
     }
 
     /** @param array{submission_key: string, amount: string|int|float, payment_date: string, payment_type: string, receipt?: ?UploadedFile} $data */
-    public function create(int $orderId, array $data): Payment
+    public function create(int $orderId, array $data, ?User $actor = null): Payment
     {
         $receipt = $data['receipt'] ?? null;
         $storedReceipt = null;
 
         try {
-            return DB::transaction(function () use ($orderId, $data, $receipt, &$storedReceipt): Payment {
+            return DB::transaction(function () use ($orderId, $data, $receipt, $actor, &$storedReceipt): Payment {
                 $order = Order::query()->whereKey($orderId)->lockForUpdate()->firstOrFail();
+
+                if ($actor !== null) {
+                    Gate::forUser($actor)->authorize('recordPayment', $order);
+                }
+
                 $amountInCents = MoneyAmount::inCents((string) $data['amount']);
                 $existingPayment = Payment::query()->where('submission_key', $data['submission_key'])->first();
 
@@ -85,13 +92,19 @@ class PaymentEntries
                     $storedReceipt = $this->receiptStorage->store($receipt);
                 }
 
-                return $order->payments()->create([
+                $payment = $order->payments()->create([
                     'submission_key' => $data['submission_key'],
                     'amount' => MoneyAmount::decimal($amountInCents),
                     'payment_date' => $data['payment_date'],
                     'payment_type' => $data['payment_type'],
                     ...($storedReceipt ?? []),
                 ]);
+
+                if ($actor !== null) {
+                    $this->audit->paymentRecorded($actor, $order, $payment);
+                }
+
+                return $payment;
             }, attempts: $receipt === null ? 3 : 1);
         } catch (Throwable $exception) {
             if ($storedReceipt !== null) {

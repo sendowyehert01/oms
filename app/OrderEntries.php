@@ -16,6 +16,8 @@ class OrderEntries
 {
     public const array STATUSES = [OrderStatus::Pending->value, OrderStatus::InProduction->value, OrderStatus::ReadyForDelivery->value, OrderStatus::Delivered->value, OrderStatus::Completed->value];
 
+    public function __construct(private readonly AuditRecorder $audit) {}
+
     /**
      * @return Collection<int, array{id: int, number: string, customer_name: string, order_date: string, status: string, total_amount_in_cents: int}>
      */
@@ -115,6 +117,7 @@ class OrderEntries
             }
 
             $order->delete();
+            $this->audit->orderDeleted($user, $order);
 
             return ['status' => 'deleted', 'number' => $this->number($order->id, $order->order_date->toDateString())];
         });
@@ -145,6 +148,7 @@ class OrderEntries
                     Gate::forUser($user)->authorize('create', Customer::class);
                     $customer->creator()->associate($user);
                     $customer->save();
+                    $this->audit->clientCreated($user, $customer);
                 }
 
                 Gate::forUser($user)->authorize('view', $customer);
@@ -187,6 +191,7 @@ class OrderEntries
                     'to_status' => OrderStatus::Pending->value,
                     'submission_key' => $data['submission_key'],
                 ]);
+                $this->audit->orderCreated($user, $order);
 
                 return $order->id;
             });
