@@ -31,4 +31,9 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => ['role' => UserRole::Admin]);
     }
+
+    public function productionMonitor(): static
+    {
+        return $this->state(fn (array $attributes): array => ['role' => UserRole::ProductionMonitor]);
+    }
 }

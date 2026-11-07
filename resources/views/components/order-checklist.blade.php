@@ -5,7 +5,7 @@
     $remainingItems = $items->reject(fn (\App\Models\OrderItem $item): bool => $item->isReadyForDelivery());
     $readyCount = $items->count() - $remainingItems->count();
     $allReady = $items->isNotEmpty() && $remainingItems->isEmpty();
-    $canUpdateProgress = auth()->user()->can('updateStatus', $order);
+    $canUpdateProgress = auth()->user()->can('updateProduction', $order);
     $trackingAllowed = in_array($order->status, ['Pending', 'In production', 'Ready for delivery'], true) && ($order->status === 'Pending' || $order->item_tracking_started_at !== null);
     $canConfirmDelivery = $order->status === 'Ready for delivery' && $allReady;
     $deliveryConfirmed = $order->delivery_date !== null && filled($order->delivery_recipient) && $order->delivery_confirmed_at !== null && filled($order->delivery_confirmed_by_name);
@@ -66,8 +66,8 @@
         $nextHref = '#stock-check-'.$uncheckedItem->id;
         $nextLinkLabel = 'Go to stock check';
     } elseif ($productionItem !== null) {
-        $nextTitle = 'Start production for remaining items.';
-        $nextDescription = 'The stock checks show a shortage. Start production for those items, then confirm readiness when the full quantity is finished and quality checked.';
+        $nextTitle = $productionItem->hasAvailableMaterials() ? 'Start production for remaining items.' : 'Check raw materials for remaining items.';
+        $nextDescription = 'The finished-stock checks show a shortage. Confirm every required material is available before starting production, then confirm readiness when the full quantity is finished and quality checked.';
         $nextHref = '#production-item-'.$productionItem->id;
         $nextLinkLabel = 'Go to item progress';
     } elseif (! $allReady) {
@@ -96,7 +96,7 @@
     }
 
     $hasFailedSave = $errors->any() || session('error');
-    $prepareHasErrors = $hasFailedSave && in_array(old('action'), ['check_availability', 'start_production', 'mark_ready', 'reopen'], true);
+    $prepareHasErrors = $hasFailedSave && in_array(old('action'), ['check_availability', 'check_materials', 'start_production', 'mark_ready', 'reopen'], true);
     $deliverHasErrors = $errors->hasAny(['target_delivery_date', 'delivery_date', 'delivery_recipient']) || ($hasFailedSave && in_array(old('action'), ['deliver', 'schedule_delivery'], true));
     $completeHasErrors = $hasFailedSave && old('action') === 'complete';
 @endphp
@@ -129,8 +129,8 @@
             <div class="border-t border-slate-200 p-4 sm:p-5 dark:border-slate-800">
                 <h3 id="production-heading" tabindex="-1" class="scroll-mt-24 font-semibold">Stock and production</h3>
                 <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Check stock, start production where needed, and confirm each item is ready. The order becomes ready for delivery when every item is ready.</p>
-                @cannot('updateStatus', $order)
-                    <p class="mt-3 text-sm text-slate-600 dark:text-slate-400">Only administrators can update availability and production progress. You can follow their progress here.</p>
+                @cannot('updateProduction', $order)
+                    <p class="mt-3 text-sm text-slate-600 dark:text-slate-400">Administrators and Production Monitors update availability and production progress. You can follow their progress here.</p>
                 @endcannot
                 <x-item-production-panel :order="$order" />
                 @can('updateStatus', $order)

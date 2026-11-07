@@ -6,6 +6,7 @@ use App\Actions\Fortify\CreateNewUser;
 use App\AuditRecorder;
 use App\Http\Requests\StoreStaffRequest;
 use App\Models\User;
+use App\UserRole;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -20,7 +21,7 @@ class StaffController extends Controller
     public function store(StoreStaffRequest $request, CreateNewUser $createNewUser, AuditRecorder $audit): RedirectResponse
     {
         DB::transaction(function () use ($request, $createNewUser, $audit): void {
-            $staff = $createNewUser->create($request->validated());
+            $staff = $createNewUser->create($request->validated(), UserRole::from($request->validated('account_role', UserRole::Staff->value)));
             $audit->staffCreated($request->user(), $staff);
         });
 

@@ -19,7 +19,7 @@ class CustomerPolicy
 
     public function create(User $user): bool
     {
-        return true;
+        return ! $user->isProductionMonitor();
     }
 
     public function view(User $user, Customer $customer): bool

@@ -26,5 +26,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-staff', fn (User $user): bool => $user->isAdmin());
         Gate::define('export-data', fn (User $user): bool => $user->isAdmin());
         Gate::define('view-audit-logs', fn (User $user): bool => $user->isAdmin());
+        Gate::define('view-financials', fn (User $user): bool => ! $user->isProductionMonitor());
     }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\ItemAvailability;
 use App\ItemMeasurement;
 use App\ItemProductionStatus;
+use App\MaterialChecklist;
 use App\MoneyAmount;
 use Database\Factories\OrderItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -47,6 +48,31 @@ class OrderItem extends Model
         return $this->production_status === ItemProductionStatus::ReadyForDelivery && ! $this->ready_check_required;
     }
 
+    public function hasAvailableMaterials(): bool
+    {
+        return $this->materials_checked_at !== null
+            && $this->material_availability === ItemAvailability::Available
+            && MaterialChecklist::availability($this->material_checklist ?? []) === ItemAvailability::Available;
+    }
+
+    public function needsMaterialCheck(): bool
+    {
+        return $this->production_status === ItemProductionStatus::Pending
+            && in_array($this->stock_availability, [ItemAvailability::PartiallyAvailable, ItemAvailability::Unavailable], true);
+    }
+
+    public function remainingProductionQuantity(): ?ItemMeasurement
+    {
+        if ($this->finished_stock_quantity === null) {
+            return null;
+        }
+
+        $remaining = max(0, $this->measurement()->hundredths - ItemMeasurement::fromInput($this->finished_stock_quantity, $this->unit)->hundredths);
+        $quantity = intdiv($remaining, 100).'.'.str_pad((string) ($remaining % 100), 2, '0', STR_PAD_LEFT);
+
+        return ItemMeasurement::fromInput($quantity, $this->unit);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
@@ -55,6 +81,10 @@ class OrderItem extends Model
             'quantity' => 'string',
             'unit_price' => 'decimal:2',
             'stock_availability' => ItemAvailability::class,
+            'material_checklist' => 'array',
+            'material_availability' => ItemAvailability::class,
+            'materials_checked_at' => 'datetime',
+            'materials_checked_by' => 'integer',
             'production_status' => ItemProductionStatus::class,
             'ready_check_required' => 'boolean',
             'availability_checked_at' => 'datetime',

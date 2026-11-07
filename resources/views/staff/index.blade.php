@@ -11,6 +11,16 @@
                 @csrf
                 <x-form-input name="name" label="Name" :value="old('name')" autocomplete="name" maxlength="255" />
                 <x-form-input name="email" label="Email" type="email" :value="old('email')" autocomplete="off" maxlength="255" />
+                <div>
+                    <label for="account_role" class="mb-2 block text-sm font-medium">Account role</label>
+                    <select id="account_role" name="account_role" required class="oms-input min-h-12 w-full">
+                        @foreach ([\App\UserRole::Staff, \App\UserRole::ProductionMonitor] as $role)
+                            <option value="{{ $role->value }}" @selected(old('account_role', 'staff') === $role->value)>{{ $role->label() }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Staff handles orders and payments. Production Monitor checks stock and materials and manages production across orders.</p>
+                    @error('account_role')<p class="mt-2 text-sm text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+                </div>
                 <x-form-input name="password" label="Initial password" type="password" autocomplete="new-password" minlength="12" maxlength="72" />
                 <p class="text-sm text-slate-500 dark:text-slate-400">Use 12 to 72 characters.</p>
                 <x-form-input name="password_confirmation" label="Confirm password" type="password" autocomplete="new-password" />
@@ -25,7 +35,7 @@
                     <thead><tr class="border-b border-slate-200 dark:border-slate-700"><th scope="col" class="pb-3 pr-4">Name</th><th scope="col" class="pb-3 pr-4">Email</th><th scope="col" class="pb-3">Role</th></tr></thead>
                     <tbody>
                         @foreach ($users as $account)
-                            <tr class="border-b border-slate-100 dark:border-slate-800"><td class="py-4 pr-4 font-semibold">{{ $account->name }}</td><td class="py-4 pr-4">{{ $account->email }}</td><td class="py-4"><span @class(['rounded-full px-3 py-1 text-xs font-semibold', 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-200' => $account->isAdmin(), 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' => ! $account->isAdmin()])>{{ $account->isAdmin() ? 'Admin' : 'Staff' }}</span></td></tr>
+                            <tr class="border-b border-slate-100 dark:border-slate-800"><td class="py-4 pr-4 font-semibold">{{ $account->name }}</td><td class="py-4 pr-4">{{ $account->email }}</td><td class="py-4"><span @class(['rounded-full px-3 py-1 text-xs font-semibold', 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-200' => $account->isAdmin(), 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' => ! $account->isAdmin()])>{{ $account->role->label() }}</span></td></tr>
                         @endforeach
                     </tbody>
                 </table>

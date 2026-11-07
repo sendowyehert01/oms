@@ -3,7 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Actions\Fortify\CreateNewUser;
+use App\UserRole;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreStaffRequest extends FormRequest
 {
@@ -22,7 +24,10 @@ class StoreStaffRequest extends FormRequest
      */
     public function rules(): array
     {
-        return app(CreateNewUser::class)->rules();
+        return [
+            ...app(CreateNewUser::class)->rules(),
+            'account_role' => ['sometimes', 'required', Rule::enum(UserRole::class)->except(UserRole::Admin)],
+        ];
     }
 
     protected function prepareForValidation(): void

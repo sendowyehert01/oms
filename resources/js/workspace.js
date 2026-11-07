@@ -1,3 +1,5 @@
+import './material-checks.js';
+
 const root = document.documentElement;
 const themeButtons = document.querySelectorAll('[data-theme-toggle]');
 

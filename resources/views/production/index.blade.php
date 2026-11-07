@@ -2,6 +2,15 @@
     <x-page-heading title="Production" eyebrow="Operations" description="Monitor item readiness, blockers, and delivery schedules for orders you can access." />
     <x-form-errors message="Please check your production filters:" />
     <form method="GET" action="{{ route('production.index') }}" class="oms-surface grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3 dark:border-slate-800 dark:bg-slate-900">
+        <div>
+            <label for="queue" class="mb-2 block text-sm font-medium">Production queue</label>
+            <select id="queue" name="queue" class="oms-input min-h-12 w-full">
+                <option value="">All queues</option>
+                @foreach (['needs_check' => 'Needs checking', 'waiting_materials' => 'Waiting for materials', 'in_production' => 'In production', 'ready' => 'Ready for delivery'] as $value => $label)
+                    <option value="{{ $value }}" @selected(($filters['queue'] ?? '') === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+        </div>
         <x-form-input name="search" label="Order number or customer" :required="false" :value="$filters['search'] ?? ''" maxlength="255" />
         <div><label for="status" class="mb-2 block text-sm font-medium">Status</label><select id="status" name="status" class="oms-input min-h-12 w-full"><option value="">All statuses</option>@foreach ($statuses as $status)<option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ $status }}</option>@endforeach</select></div>
         <x-form-input name="target_delivery_date" type="date" label="Target delivery date" :required="false" :value="$filters['target_delivery_date'] ?? ''" />

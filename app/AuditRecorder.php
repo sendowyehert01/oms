@@ -51,7 +51,9 @@ class AuditRecorder
 
     public function staffCreated(User $actor, User $staff): AuditLog
     {
-        return $this->record($actor, AuditAction::StaffCreated, 'a staff account "'.$staff->name.'"', 'user', $staff->id, $staff->name);
+        $accountType = $staff->isProductionMonitor() ? 'a Production Monitor account' : 'a staff account';
+
+        return $this->record($actor, AuditAction::StaffCreated, $accountType.' "'.$staff->name.'"', 'user', $staff->id, $staff->name);
     }
 
     public function signedIn(User $actor): AuditLog
@@ -73,6 +75,7 @@ class AuditRecorder
     {
         $action = match ($eventType) {
             'availability_checked' => AuditAction::AvailabilityChecked,
+            'materials_checked' => AuditAction::MaterialsChecked,
             'item_production_changed' => match ($to) {
                 ItemProductionStatus::InProduction->value => AuditAction::ProductionStarted,
                 ItemProductionStatus::ReadyForDelivery->value => AuditAction::ReadinessConfirmed,
@@ -95,6 +98,7 @@ class AuditRecorder
         $itemReference = 'item "'.$item?->product_name.'" in order "'.$number.'"';
         $details = match ($action) {
             AuditAction::AvailabilityChecked => 'stock availability for '.$itemReference.' as "'.$to.'"',
+            AuditAction::MaterialsChecked => 'raw materials for '.$itemReference.' as "'.$to.'"',
             AuditAction::ProductionStarted => 'production for '.$itemReference,
             AuditAction::ReadinessConfirmed, AuditAction::ReadinessReconfirmed => 'readiness for '.$itemReference.' after quality checks',
             AuditAction::DeliveryConfirmed => 'delivery of an order "'.$number.'" on '.$order->delivery_date?->toDateString().' received by "'.$order->delivery_recipient.'"',
