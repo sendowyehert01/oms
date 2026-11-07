@@ -101,8 +101,8 @@ test('the next action follows the remaining item stock and production state', fu
     expect(orderChecklistElement($document, 'stock-check-'.$order->items->first()->id)->hasAttribute('open'))->toBeFalse();
 })->with([
     'available stock needs allocation' => ['Available', 'Pending', 'Confirm item readiness.'],
-    'partial stock needs production' => ['Partially available', 'Pending', 'Start production for remaining items.'],
-    'unavailable stock needs production' => ['Unavailable', 'Pending', 'Start production for remaining items.'],
+    'partial stock needs materials' => ['Partially available', 'Pending', 'Check raw materials for remaining items.'],
+    'unavailable stock needs materials' => ['Unavailable', 'Pending', 'Check raw materials for remaining items.'],
     'unfinished production needs readiness' => ['Unavailable', 'In production', 'Confirm item readiness.'],
     'stock found during production still needs readiness' => ['Available', 'In production', 'Confirm item readiness.'],
 ]);
@@ -424,6 +424,10 @@ test('guidance advances through stock production delivery payment and completion
     $this->post($stockUrl, orderChecklistPayload($order, 'check_availability', ['stock_availability' => 'Available']))->assertRedirectToRoute('orders.show', $order);
     $this->get($showUrl)->assertOk()->assertSee('href="#stock-check-'.$productionItem->id.'"', false);
     $this->post($productionUrl, orderChecklistPayload($order, 'check_availability', ['stock_availability' => 'Partially available']))->assertRedirectToRoute('orders.show', $order);
+    $this->get($showUrl)->assertOk()->assertSeeText('Check raw materials for remaining items.');
+    $this->post($productionUrl, orderChecklistPayload($order, 'check_materials', [
+        'materials' => [['name' => 'LDPE resin', 'required_quantity' => '10', 'available_quantity' => '10', 'unit' => 'kgs']],
+    ]))->assertRedirectToRoute('orders.show', $order);
     $this->get($showUrl)->assertOk()->assertSeeText('Start production for remaining items.');
     $this->post($productionUrl, orderChecklistPayload($order, 'start_production'))->assertRedirectToRoute('orders.show', $order);
     $this->get($showUrl)->assertOk()->assertSeeText('Confirm item readiness.');
@@ -448,5 +452,5 @@ test('guidance advances through stock production delivery payment and completion
     $this->assertDatabaseHas('order_items', ['id' => $stockItem->id, 'stock_availability' => ItemAvailability::Available->value, 'readiness_source' => 'stock']);
     $this->assertDatabaseHas('order_items', ['id' => $productionItem->id, 'production_status' => ItemProductionStatus::ReadyForDelivery->value, 'readiness_source' => 'production']);
     $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'amount' => '250.00', 'payment_type' => 'full_payment']);
-    $this->assertDatabaseCount('order_status_histories', 9);
+    $this->assertDatabaseCount('order_status_histories', 10);
 });

@@ -22,8 +22,12 @@ use Throwable;
 
 class OrderController extends Controller
 {
-    public function index(Request $request, OrderEntries $orderEntries): View|string
+    public function index(Request $request, OrderEntries $orderEntries): View|string|RedirectResponse
     {
+        if ($request->user()->isProductionMonitor()) {
+            return to_route('production.index');
+        }
+
         $search = $request->query('search', '');
         $search = is_string($search) ? trim($search) : '';
         $searchTerm = mb_strtolower($search);
@@ -90,6 +94,17 @@ class OrderController extends Controller
         $orderId = filter_var($order, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
         try {
+            if ($request->user()->isProductionMonitor()) {
+                $productionOrder = Order::query()->visibleTo($request->user())->with(['customer:id,company_name', 'creator:id,name', 'items'])->findOrFail($orderId);
+                Gate::authorize('view', $productionOrder);
+
+                return view('production.show', [
+                    'order' => $productionOrder,
+                    'orderNumber' => $orderEntries->number($productionOrder->id, $productionOrder->order_date->toDateString()),
+                    'statusHistory' => $productionOrder->statusHistory()->where('event_type', '!=', 'payment_due_date_changed')->paginate(10, ['*'], 'history_page')->withQueryString(),
+                ]);
+            }
+
             $details = $orderId === false ? null : $orderEntries->find($orderId, $request->user());
             $workflowOrder = $details !== null ? Order::query()->findOrFail($orderId) : null;
             $paymentSummary = $workflowOrder !== null ? $paymentEntries->summary($workflowOrder) : null;

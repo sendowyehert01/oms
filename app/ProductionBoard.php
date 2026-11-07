@@ -39,6 +39,14 @@ class ProductionBoard
         if (($filters['late'] ?? false)) {
             $query->where('target_delivery_date', '<', $today)->whereNotIn('status', ['Delivered', 'Completed']);
         }
+        if (filled($filters['queue'] ?? null)) {
+            match ($filters['queue']) {
+                'needs_check' => $query->whereHas('items', fn (Builder $items): Builder => $items->where('stock_availability', 'Not checked')->orWhere(fn (Builder $items): Builder => $items->where('production_status', 'Pending')->whereIn('stock_availability', ['Partially available', 'Unavailable'])->where('material_availability', 'Not checked')))->whereNotIn('status', ['Delivered', 'Completed']),
+                'waiting_materials' => $query->whereHas('items', fn (Builder $items): Builder => $items->where('production_status', 'Pending')->whereIn('stock_availability', ['Partially available', 'Unavailable'])->whereIn('material_availability', ['Partially available', 'Unavailable']))->whereNotIn('status', ['Delivered', 'Completed']),
+                'in_production' => $query->whereHas('items', fn (Builder $items): Builder => $items->where('production_status', 'In production'))->whereNotIn('status', ['Delivered', 'Completed']),
+                'ready' => $query->where('status', 'Ready for delivery')->whereHas('items')->whereDoesntHave('items', fn (Builder $items): Builder => $items->where('production_status', '!=', 'Ready for delivery')->orWhere('ready_check_required', true)),
+            };
+        }
         $counts = (clone $query)->select('status')->selectRaw('COUNT(*) AS total')->groupBy('status')->pluck('total', 'status');
         $orders = $query->select('orders.*')->with(['customer:id,company_name', 'creator:id,name'])
             ->withCount([
@@ -47,6 +55,8 @@ class ProductionBoard
                 'items as unchecked_items_count' => fn (Builder $items): Builder => $items->where('stock_availability', 'Not checked'),
                 'items as review_items_count' => fn (Builder $items): Builder => $items->where('ready_check_required', true),
                 'items as pending_items_count' => fn (Builder $items): Builder => $items->where('production_status', 'Pending'),
+                'items as material_check_items_count' => fn (Builder $items): Builder => $items->where('production_status', 'Pending')->whereIn('stock_availability', ['Partially available', 'Unavailable'])->where('material_availability', 'Not checked'),
+                'items as material_shortage_items_count' => fn (Builder $items): Builder => $items->where('production_status', 'Pending')->whereIn('stock_availability', ['Partially available', 'Unavailable'])->whereIn('material_availability', ['Partially available', 'Unavailable']),
             ])
             ->addSelect(['stage_started_at' => OrderStatusHistory::query()->select('created_at')
                 ->whereColumn('order_id', 'orders.id')->whereColumn('to_status', 'orders.status')
@@ -85,6 +95,12 @@ class ProductionBoard
         }
         if ($order->unchecked_items_count > 0) {
             $blockers[] = 'Finished-stock check needed';
+        }
+        if ($order->material_check_items_count > 0) {
+            $blockers[] = 'Raw-material check needed';
+        }
+        if ($order->material_shortage_items_count > 0) {
+            $blockers[] = 'Waiting for materials';
         }
         if ($order->pending_items_count > 0) {
             $blockers[] = 'Waiting for preparation';

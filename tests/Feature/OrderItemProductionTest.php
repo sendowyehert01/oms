@@ -34,6 +34,14 @@ function itemProductionUrl(Order $order, OrderItem $item): string
     return route('orders.items.production.update', ['order' => $order, 'item' => $item]);
 }
 
+/** @return array<string, mixed> */
+function itemMaterialData(Order $order): array
+{
+    return itemProductionData($order, 'check_materials', [
+        'materials' => [['name' => 'LDPE resin', 'required_quantity' => '10', 'available_quantity' => '10', 'unit' => 'kgs']],
+    ]);
+}
+
 test('items default to unchecked without invented readiness or historical order status', function (): void {
     $order = Order::factory()->hasItems(2)->create(['status' => 'Ready for delivery']);
     foreach ($order->items as $item) {
@@ -70,6 +78,7 @@ test('partial or unavailable finished stock can enter production without payment
     $item = $order->items->first();
     $this->postJson(itemProductionUrl($order, $item), itemProductionData($order, 'check_availability', ['stock_availability' => $availability]))->assertRedirect();
     $this->postJson(itemProductionUrl($order, $item), itemProductionData($order, 'mark_ready', ['quality_checked' => true]))->assertUnprocessable()->assertJsonValidationErrors('action');
+    $this->postJson(itemProductionUrl($order, $item), itemMaterialData($order))->assertRedirect();
     $this->postJson(itemProductionUrl($order, $item), itemProductionData($order, 'start_production'))->assertRedirect();
     expect($order->fresh()->status)->toBe('In production');
     $this->postJson(itemProductionUrl($order, $item), itemProductionData($order, 'mark_ready', ['quality_checked' => true]))->assertRedirect();
@@ -93,6 +102,7 @@ test('all items must be ready before the entire order becomes ready', function (
     expect($order->fresh()->status)->toBe('In production');
     expect($second->fresh()->production_status)->toBe(ItemProductionStatus::Pending);
     $this->postJson(itemProductionUrl($order, $second), itemProductionData($order, 'check_availability', ['stock_availability' => 'Unavailable']))->assertRedirect();
+    $this->postJson(itemProductionUrl($order, $second), itemMaterialData($order))->assertRedirect();
     $this->postJson(itemProductionUrl($order, $second), itemProductionData($order, 'start_production'))->assertRedirect();
     expect($order->fresh()->status)->toBe('In production');
     $this->postJson(itemProductionUrl($order, $second), itemProductionData($order, 'mark_ready', ['quality_checked' => true]))->assertRedirect();
@@ -103,6 +113,7 @@ test('later availability checks preserve progress and require explicit readiness
     $order = Order::factory()->hasItems(1)->create();
     $item = $order->items->first();
     $this->postJson(itemProductionUrl($order, $item), itemProductionData($order, 'check_availability', ['stock_availability' => 'Unavailable']))->assertRedirect();
+    $this->postJson(itemProductionUrl($order, $item), itemMaterialData($order))->assertRedirect();
     $this->postJson(itemProductionUrl($order, $item), itemProductionData($order, 'start_production'))->assertRedirect();
     $this->postJson(itemProductionUrl($order, $item), itemProductionData($order, 'check_availability', ['stock_availability' => 'Available']))->assertRedirect();
     expect($item->fresh()->production_status)->toBe(ItemProductionStatus::InProduction);
@@ -199,6 +210,7 @@ test('production forms keep unique labels and IDs with mixed item states', funct
         $this->postJson(itemProductionUrl($order, $item), itemProductionData($order, 'check_availability', ['stock_availability' => $availability]))->assertRedirect();
     }
     $this->postJson(itemProductionUrl($order, $first), itemProductionData($order, 'mark_ready', ['quality_checked' => true]))->assertRedirect();
+    $this->postJson(itemProductionUrl($order, $second), itemMaterialData($order))->assertRedirect();
     $this->postJson(itemProductionUrl($order, $second), itemProductionData($order, 'start_production'))->assertRedirect();
     $html = $this->get(route('orders.show', $order))->assertOk()->getContent();
     $document = new DOMDocument;

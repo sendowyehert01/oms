@@ -59,6 +59,9 @@ test('the complete order cycle records one uniform entry per human action', func
     $stockCheck = auditChangeData($order, 'check_availability', ['stock_availability' => 'Unavailable']);
     $this->post($itemUrl, $stockCheck)->assertRedirect();
     $this->post($itemUrl, $stockCheck)->assertRedirect();
+    $this->post($itemUrl, auditChangeData($order, 'check_materials', [
+        'materials' => [['name' => 'LDPE resin', 'required_quantity' => '10', 'available_quantity' => '10', 'unit' => 'kgs']],
+    ]))->assertRedirect();
     $this->post($itemUrl, auditChangeData($order, 'start_production'))->assertRedirect();
     $this->post($itemUrl, auditChangeData($order, 'mark_ready', ['quality_checked' => true]))->assertRedirect();
     $this->post(route('orders.status.update', $order), auditChangeData($order, 'deliver', ['delivery_date' => '2026-11-06', 'delivery_recipient' => 'Sendo Galang']))->assertRedirect();
@@ -76,6 +79,7 @@ test('the complete order cycle records one uniform entry per human action', func
         'Jem Morales updates the delivery target for an order "ORD-2026-0001" from "Not scheduled" to "2026-11-12".',
         'Jem Morales updates the payment due date for an order "ORD-2026-0001" from "No due date" to "2026-11-13".',
         'Jem Morales checks stock availability for item "Plastic bags" in order "ORD-2026-0001" as "Unavailable".',
+        'Jem Morales checks raw materials for item "Plastic bags" in order "ORD-2026-0001" as "Available".',
         'Jem Morales starts production for item "Plastic bags" in order "ORD-2026-0001".',
         'Jem Morales confirms readiness for item "Plastic bags" in order "ORD-2026-0001" after quality checks.',
         'Jem Morales confirms delivery of an order "ORD-2026-0001" on 2026-11-06 received by "Sendo Galang".',

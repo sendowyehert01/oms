@@ -33,6 +33,11 @@ class User extends Authenticatable
         return $this->role === UserRole::Admin;
     }
 
+    public function isProductionMonitor(): bool
+    {
+        return $this->role === UserRole::ProductionMonitor;
+    }
+
     /** @return HasMany<Customer, $this> */
     public function createdClients(): HasMany
     {

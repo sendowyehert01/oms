@@ -12,6 +12,7 @@ enum AuditAction: string
     case DeliveryTargetUpdated = 'delivery_target_updated';
     case PaymentDueDateUpdated = 'payment_due_date_updated';
     case AvailabilityChecked = 'availability_checked';
+    case MaterialsChecked = 'materials_checked';
     case ProductionStarted = 'production_started';
     case ReadinessConfirmed = 'readiness_confirmed';
     case ReadinessReconfirmed = 'readiness_reconfirmed';
@@ -36,6 +37,7 @@ enum AuditAction: string
             self::DeliveryTargetUpdated => 'Update delivery target',
             self::PaymentDueDateUpdated => 'Update payment due date',
             self::AvailabilityChecked => 'Check stock availability',
+            self::MaterialsChecked => 'Check raw materials',
             self::ProductionStarted => 'Start production',
             self::ReadinessConfirmed => 'Confirm readiness',
             self::ReadinessReconfirmed => 'Reconfirm readiness',
@@ -58,7 +60,7 @@ enum AuditAction: string
             self::ClientCreated, self::OrderCreated, self::StaffCreated => 'creates',
             self::OrderViewed, self::ReceiptViewed => 'views',
             self::DeliveryTargetUpdated, self::PaymentDueDateUpdated => 'updates',
-            self::AvailabilityChecked => 'checks',
+            self::AvailabilityChecked, self::MaterialsChecked => 'checks',
             self::ProductionStarted => 'starts',
             self::ReadinessConfirmed, self::DeliveryConfirmed => 'confirms',
             self::ReadinessReconfirmed => 'reconfirms',

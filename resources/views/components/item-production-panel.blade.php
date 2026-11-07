@@ -17,7 +17,8 @@
                 $availability = $item->stock_availability;
                 $progress = $item->production_status;
                 $needsReview = $item->ready_check_required;
-                $canStart = $progress === \App\ItemProductionStatus::Pending && in_array($availability, [\App\ItemAvailability::PartiallyAvailable, \App\ItemAvailability::Unavailable], true);
+                $needsProduction = $item->needsMaterialCheck();
+                $canStart = $needsProduction && $item->hasAvailableMaterials();
                 $canReady = $progress === \App\ItemProductionStatus::InProduction || (($progress === \App\ItemProductionStatus::Pending || $needsReview) && $availability === \App\ItemAvailability::Available);
                 $failedItemId = old('order_item_id');
                 $isFailedItem = is_scalar($failedItemId) && (string) $failedItemId === (string) $item->id;
@@ -38,15 +39,19 @@
                     @endif
                 </dl>
                 @if (filled($item->availability_notes))<p class="mt-3 whitespace-pre-line break-words text-sm text-slate-600 dark:text-slate-400">{{ $item->availability_notes }}</p>@endif
+                @if ($item->finished_stock_quantity !== null)
+                    <p class="mt-3 text-sm">Finished stock counted: <strong>{{ $item->finished_stock_quantity }} {{ $item->unit }}</strong></p>
+                @endif
                 @if ($item->ready_confirmed_at)
                     <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">{{ $item->readiness_source === 'stock' ? 'Allocated from finished stock' : 'Production finished' }} · Confirmed by {{ $item->ready_confirmed_by_name }} on {{ $item->ready_confirmed_at->timezone(config('app.timezone'))->format('M j, Y g:i A') }}.</p>
                 @endif
                 @if ($needsReview)
                     <p role="status" class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">Readiness needs review because a later stock check reported a shortage. Confirm available stock and quality again, or reopen the order with a reason to restart production.</p>
                 @elseif ($progress === \App\ItemProductionStatus::Pending)
-                    <p class="mt-3 text-xs text-slate-600 dark:text-slate-400">{{ $availability === \App\ItemAvailability::NotChecked ? 'Check finished-stock availability to choose the next action.' : ($canStart ? 'Production is needed to fulfill the full ordered quantity.' : 'Allocate the full quantity from available stock and confirm its quality.') }}</p>
+                    <p class="mt-3 text-xs text-slate-600 dark:text-slate-400">{{ $availability === \App\ItemAvailability::NotChecked ? 'Check finished-stock availability to choose the next action.' : ($needsProduction ? 'Check the raw materials needed to produce the remaining quantity.' : 'Allocate the full quantity from available stock and confirm its quality.') }}</p>
                 @endif
-                @can('updateStatus', $order)
+                <x-material-check-panel :order="$order" :item="$item" :tracking-allowed="$trackingAllowed" />
+                @can('updateProduction', $order)
                     @if ($trackingAllowed)
                         <details id="stock-check-{{ $item->id }}" @if ($availability === \App\ItemAvailability::NotChecked || ($needsReview && $availability !== \App\ItemAvailability::Available) || ($isFailedCheck && ($errors->any() || session('error')))) open @endif class="mt-4 scroll-mt-24 border-t border-slate-100 pt-3 dark:border-slate-800">
                             <summary class="min-h-11 py-3 text-sm font-semibold text-brand-700 dark:text-brand-300">Check / update finished stock</summary>
@@ -56,6 +61,7 @@
                                 <input type="hidden" name="workflow_version" value="{{ $order->workflow_version }}">
                                 <input type="hidden" name="order_item_id" value="{{ $item->id }}">
                                 <input type="hidden" name="action" value="check_availability">
+                                <x-form-input name="finished_stock_quantity" :id="'finished-quantity-'.$item->id" :label="'Counted finished quantity ('.$item->unit.')'" :required="false" :value="$isFailedCheck ? old('finished_stock_quantity') : $item->finished_stock_quantity" inputmode="decimal" maxlength="12" />
                                 <div>
                                     <label for="availability-{{ $item->id }}" class="mb-2 block text-sm font-medium">Finished-stock availability <span aria-hidden="true" class="text-rose-600">*</span></label>
                                     <select id="availability-{{ $item->id }}" name="stock_availability" required @if ($isFailedCheck && $errors->has('stock_availability')) aria-invalid="true" aria-describedby="availability-{{ $item->id }}-error" @endif class="oms-input min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950">

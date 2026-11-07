@@ -58,7 +58,7 @@ class Order extends Model
     #[Scope]
     protected function visibleTo(Builder $query, User $user): void
     {
-        if (! $user->isAdmin()) {
+        if (! $user->isAdmin() && ! $user->isProductionMonitor()) {
             $query->where(fn (Builder $query): Builder => $query
                 ->createdBy($user)
                 ->orWhereHas('customer', fn (Builder $query): Builder => $query->createdBy($user)));
