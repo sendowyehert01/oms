@@ -118,7 +118,17 @@ class OrderWorkflow
             if ($item->production_status !== ItemProductionStatus::Pending) {
                 $this->record($order, $actor, $data, 'item_reopened', $item->production_status->value, ItemProductionStatus::Pending->value, $item, additional: true);
             }
+            if ($item->material_availability !== ItemAvailability::NotChecked) {
+                $this->record($order, $actor, $data, 'materials_reset', $item->material_availability->value, ItemAvailability::NotChecked->value, $item, additional: true);
+            }
             $item->stock_availability = ItemAvailability::NotChecked;
+            $item->finished_stock_quantity = null;
+            $item->material_checklist = null;
+            $item->material_availability = ItemAvailability::NotChecked;
+            $item->material_notes = null;
+            $item->materials_checked_by = null;
+            $item->materials_checked_by_name = null;
+            $item->materials_checked_at = null;
             $item->production_status = ItemProductionStatus::Pending;
             $item->availability_notes = null;
             $item->availability_checked_by = null;

@@ -20,6 +20,7 @@ class ProductionBoardController extends Controller
             'target_delivery_date' => ['nullable', 'date_format:Y-m-d'], 'customer_search' => ['nullable', 'string', 'max:255'],
             'creator_search' => ['nullable', 'string', 'max:255'],
             'late' => ['nullable', 'boolean'], 'view' => ['nullable', Rule::in(['board', 'list'])],
+            'queue' => ['nullable', Rule::in(['needs_check', 'waiting_materials', 'in_production', 'ready'])],
         ]);
         try {
             $data = $board->summary($request->user(), $filters);

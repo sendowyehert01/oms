@@ -24,6 +24,7 @@ class OrderEntries
     public function all(User $user): Collection
     {
         Gate::forUser($user)->authorize('viewAny', Order::class);
+        Gate::forUser($user)->authorize('view-financials');
 
         if (! Schema::hasTable('orders')) {
             return collect();
@@ -61,6 +62,7 @@ class OrderEntries
         }
 
         Gate::forUser($user)->authorize('view', $order);
+        Gate::forUser($user)->authorize('viewFinancials', $order);
 
         $items = $order->items->map(fn (OrderItem $item): array => [
             'product_name' => $item->product_name,

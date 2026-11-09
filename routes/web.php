@@ -28,14 +28,16 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/orders/{order}/schedule', OrderScheduleController::class)->whereNumber('order')->name('orders.schedule.update');
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
-    Route::get('/orders/create', [OrderCreationController::class, 'create'])->name('orders.create');
-    Route::get('/orders/create/customer/{type}', [OrderCreationController::class, 'customer'])->whereIn('type', ['existing', 'new'])->name('orders.creation.customer');
-    Route::post('/orders/create/customer', [OrderCreationController::class, 'selectCustomer'])->name('orders.creation.select-customer');
-    Route::get('/orders/create/details', [OrderCreationController::class, 'details'])->name('orders.creation.details');
-    Route::post('/orders/create/back', [OrderCreationController::class, 'back'])->name('orders.creation.back');
-    Route::post('/orders/create/cancel', [OrderCreationController::class, 'cancel'])->name('orders.creation.cancel');
+    Route::middleware('can:create,App\Models\Order')->group(function (): void {
+        Route::get('/orders/create', [OrderCreationController::class, 'create'])->name('orders.create');
+        Route::get('/orders/create/customer/{type}', [OrderCreationController::class, 'customer'])->whereIn('type', ['existing', 'new'])->name('orders.creation.customer');
+        Route::post('/orders/create/customer', [OrderCreationController::class, 'selectCustomer'])->name('orders.creation.select-customer');
+        Route::get('/orders/create/details', [OrderCreationController::class, 'details'])->name('orders.creation.details');
+        Route::post('/orders/create/back', [OrderCreationController::class, 'back'])->name('orders.creation.back');
+        Route::post('/orders/create/cancel', [OrderCreationController::class, 'cancel'])->name('orders.creation.cancel');
+    });
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
-    Route::get('/balances', BalanceController::class)->name('balances.index');
+    Route::get('/balances', BalanceController::class)->middleware('can:view-financials')->name('balances.index');
     Route::get('/exports', [DataExportController::class, 'index'])->middleware('can:export-data')->name('exports.index');
     Route::post('/exports/{type}', [DataExportController::class, 'download'])->whereIn('type', ['clients', 'orders'])->middleware('can:export-data')->name('exports.download');
     Route::post('/orders/{order}/payment-due-date', PaymentDueDateController::class)->whereNumber('order')->name('orders.payment-due-date.update');

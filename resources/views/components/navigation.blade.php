@@ -13,7 +13,7 @@
             <details class="account-menu">
                 <summary aria-label="Account menu for {{ auth()->user()->name }}">
                     <span class="account-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>
-                    <span class="account-name"><span class="block max-w-40 truncate text-xs font-semibold">{{ auth()->user()->name }}</span><span class="mt-1 block text-[10px] text-slate-500 dark:text-slate-400">{{ auth()->user()->isAdmin() ? 'Administrator' : 'Staff member' }}</span></span>
+                    <span class="account-name"><span class="block max-w-40 truncate text-xs font-semibold">{{ auth()->user()->name }}</span><span class="mt-1 block text-[10px] text-slate-500 dark:text-slate-400">{{ auth()->user()->isAdmin() ? 'Administrator' : (auth()->user()->isProductionMonitor() ? 'Production Monitor' : 'Staff member') }}</span></span>
                     <svg class="size-3 text-slate-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke-linecap="round" stroke-linejoin="round" /></svg>
                 </summary>
                 <div class="account-popover">
@@ -29,14 +29,17 @@
         <a href="{{ route('dashboard') }}" aria-label="OMS dashboard"><x-brand-logo /></a>
         <p class="navigation-caption">Workspace</p>
         <nav aria-label="Main navigation">
+            @unless (auth()->user()->isProductionMonitor())
             <a href="{{ route('dashboard') }}" @if (request()->routeIs('dashboard')) aria-current="page" @endif class="workspace-link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" stroke-linejoin="round" /></svg>
                 Dashboard
             </a>
-            <a href="{{ route('production.index') }}" @if (request()->routeIs('production.*')) aria-current="page" @endif class="workspace-link">
+            @endunless
+            <a href="{{ route('production.index') }}" @if (request()->routeIs('production.*') || (auth()->user()->isProductionMonitor() && request()->routeIs('orders.show'))) aria-current="page" @endif class="workspace-link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 4h18v16H3zM9 4v16m6-16v16" /></svg>
                 Production
             </a>
+            @unless (auth()->user()->isProductionMonitor())
             <a href="{{ route('orders.index') }}" @if (request()->routeIs('orders.*')) aria-current="page" @endif class="workspace-link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m3 7 9-4 9 4v10l-9 4-9-4V7Zm0 0 9 4 9-4m-9 4v10" stroke-linejoin="round" /></svg>
                 Orders
@@ -45,6 +48,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 5h18v14H3zM3 9h18" /><circle cx="12" cy="14" r="2" /></svg>
                 Balances
             </a>
+            @endunless
             @can('export-data')
                 <a href="{{ route('exports.index') }}" @if (request()->routeIs('exports.*')) aria-current="page" @endif class="workspace-link">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8m-8 4h8m-4-4v7" stroke-linecap="round" stroke-linejoin="round" /></svg>

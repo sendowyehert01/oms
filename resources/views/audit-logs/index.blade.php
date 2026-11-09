@@ -65,7 +65,7 @@
                         <td class="block align-top md:table-cell md:px-6 md:py-5">
                             <span class="mb-1 block text-xs text-slate-500 md:hidden dark:text-slate-400">User</span>
                             <p class="break-words font-semibold">{{ $entry->actor_name }}</p>
-                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $entry->actor_role === \App\UserRole::Admin ? 'Admin' : 'Staff' }}</p>
+                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $entry->actor_role->label() }}</p>
                         </td>
                         <td class="block align-top md:table-cell md:px-6 md:py-5">
                             <span class="mb-1 block text-xs text-slate-500 md:hidden dark:text-slate-400">Action</span>

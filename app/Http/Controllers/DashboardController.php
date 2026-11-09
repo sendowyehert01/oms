@@ -9,15 +9,20 @@ use App\Models\Order;
 use App\OutstandingBalances;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, DashboardMetrics $dashboardMetrics, DailyPerformance $dailyPerformance, OutstandingBalances $balances): View|Response
+    public function __invoke(Request $request, DashboardMetrics $dashboardMetrics, DailyPerformance $dailyPerformance, OutstandingBalances $balances): View|Response|RedirectResponse
     {
         $user = $request->user();
+
+        if ($user->isProductionMonitor()) {
+            return to_route('production.index');
+        }
 
         try {
             $metrics = $dashboardMetrics->summary($user);

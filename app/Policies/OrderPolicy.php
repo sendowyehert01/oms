@@ -20,19 +20,29 @@ class OrderPolicy
 
     public function create(User $user): bool
     {
-        return true;
+        return ! $user->isProductionMonitor();
     }
 
     public function view(User $user, Order $order): Response
     {
-        return $order->created_by === $user->id || $order->customer?->created_by === $user->id
+        return $user->isProductionMonitor() || $order->created_by === $user->id || $order->customer?->created_by === $user->id
             ? Response::allow()
             : Response::denyAsNotFound();
     }
 
     public function recordPayment(User $user, Order $order): Response
     {
-        return $this->view($user, $order);
+        return $this->viewFinancials($user, $order);
+    }
+
+    public function viewFinancials(User $user, Order $order): Response
+    {
+        return $user->isProductionMonitor() ? Response::deny() : $this->view($user, $order);
+    }
+
+    public function updateProduction(User $user, Order $order): Response
+    {
+        return $user->isProductionMonitor() ? Response::allow() : $this->updateStatus($user, $order);
     }
 
     public function setPaymentDueDate(User $user, Order $order): Response
@@ -54,6 +64,10 @@ class OrderPolicy
 
     public function scheduleDelivery(User $user, Order $order): Response
     {
+        if ($user->isProductionMonitor()) {
+            return Response::deny();
+        }
+
         return $order->created_by === $user->id
             ? Response::allow()
             : ($this->view($user, $order)->allowed() ? Response::deny() : Response::denyAsNotFound());

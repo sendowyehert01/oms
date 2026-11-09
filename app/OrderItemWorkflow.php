@@ -28,9 +28,15 @@ class OrderItemWorkflow
                 case 'check_availability':
                     $this->checkAvailability($locked, $current, $actor, $data);
                     break;
+                case 'check_materials':
+                    $this->checkMaterials($locked, $current, $actor, $data);
+                    break;
                 case 'start_production':
                     if ($current->production_status !== ItemProductionStatus::Pending || ! in_array($current->stock_availability, [ItemAvailability::PartiallyAvailable, ItemAvailability::Unavailable], true)) {
                         throw ValidationException::withMessages(['action' => 'Check finished stock first. Available stock uses the allocation and quality-check action; partial or unavailable stock can start production.']);
+                    }
+                    if (! $current->hasAvailableMaterials()) {
+                        throw ValidationException::withMessages(['action' => 'Check raw materials and confirm every required quantity is available before starting production.']);
                     }
                     $previous = $current->production_status->value;
                     $current->production_status = ItemProductionStatus::InProduction;
@@ -46,7 +52,7 @@ class OrderItemWorkflow
             $current->save();
             $locked->item_tracking_started_at ??= now();
             $this->aggregateProgress($locked, $actor, $data);
-        });
+        }, ability: 'updateProduction');
     }
 
     /** @param array<string, mixed> $data */
@@ -57,7 +63,28 @@ class OrderItemWorkflow
             throw ValidationException::withMessages(['stock_availability' => 'Choose the result of the finished-stock check.']);
         }
         $previous = $item->stock_availability->value;
+        $countedQuantity = isset($data['finished_stock_quantity']) ? (string) $data['finished_stock_quantity'] : null;
+        if ($countedQuantity !== null) {
+            $counted = ItemMeasurement::fromInput($countedQuantity, $item->unit)->hundredths;
+            $ordered = $item->measurement()->hundredths;
+            $countedAvailability = $counted >= $ordered ? ItemAvailability::Available : ($counted > 0 ? ItemAvailability::PartiallyAvailable : ItemAvailability::Unavailable);
+            if ($availability !== $countedAvailability) {
+                throw ValidationException::withMessages(['finished_stock_quantity' => 'The counted finished quantity must match the selected availability result.']);
+            }
+        }
+        if ($item->production_status === ItemProductionStatus::Pending && ($previous !== $availability->value || $item->finished_stock_quantity !== $countedQuantity)) {
+            if ($item->material_availability !== ItemAvailability::NotChecked) {
+                $this->workflow->record($order, $actor, $data, 'materials_reset', $item->material_availability->value, ItemAvailability::NotChecked->value, $item, additional: true);
+            }
+            $item->material_checklist = null;
+            $item->material_availability = ItemAvailability::NotChecked;
+            $item->material_notes = null;
+            $item->materials_checked_by = null;
+            $item->materials_checked_by_name = null;
+            $item->materials_checked_at = null;
+        }
         $item->stock_availability = $availability;
+        $item->finished_stock_quantity = $countedQuantity;
         $item->availability_notes = $data['notes'] ?? null;
         $item->availability_checked_by = $actor->id;
         $item->availability_checked_by_name = $actor->name;
@@ -65,7 +92,26 @@ class OrderItemWorkflow
         if ($item->production_status === ItemProductionStatus::ReadyForDelivery && $availability !== ItemAvailability::Available) {
             $item->ready_check_required = true;
         }
-        $this->workflow->record($order, $actor, $data, 'availability_checked', $previous, $availability->value, $item);
+        $eventNotes = $countedQuantity === null ? ($data['notes'] ?? null) : 'Finished stock counted: '.$countedQuantity.' '.$item->unit.'.'.(filled($data['notes'] ?? null) ? "\n".$data['notes'] : '');
+        $this->workflow->record($order, $actor, $data, 'availability_checked', $previous, $availability->value, $item, eventNotes: $eventNotes);
+    }
+
+    /** @param array<string, mixed> $data */
+    private function checkMaterials(Order $order, OrderItem $item, User $actor, array $data): void
+    {
+        if (! $item->needsMaterialCheck()) {
+            throw ValidationException::withMessages(['action' => 'Check raw materials for pending items that need production. Reopen an item with an administrator before changing materials after production starts.']);
+        }
+
+        $availability = MaterialChecklist::availability($data['materials']);
+        $previous = $item->material_availability->value;
+        $item->material_checklist = $data['materials'];
+        $item->material_availability = $availability;
+        $item->material_notes = $data['notes'] ?? null;
+        $item->materials_checked_by = $actor->id;
+        $item->materials_checked_by_name = $actor->name;
+        $item->materials_checked_at = now();
+        $this->workflow->record($order, $actor, $data, 'materials_checked', $previous, $availability->value, $item, eventNotes: MaterialChecklist::historyNotes($data['materials'], $data['notes'] ?? null));
     }
 
     /** @param array<string, mixed> $data */
