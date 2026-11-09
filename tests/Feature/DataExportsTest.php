@@ -80,16 +80,17 @@ function exportRows(DOMXPath $sheet): array
 test('administrators can find separate client and order exports in the navigation', function (): void {
     $response = $this->get('/exports');
 
-    $response->assertOk()->assertSeeText('Data Exports')->assertSeeText('Audit Logs')->assertSeeText('Export clients')->assertSeeText('Export orders')
+    $response->assertOk()->assertSeeText('Reports')->assertDontSeeText('Data Exports')->assertSeeText('Audit Logs')->assertSeeText('Export clients')->assertSeeText('Export orders')
         ->assertSee('clients-date-from', false)->assertSee('orders-date-to', false);
     $response->assertViewHas('defaults', ['date_from' => '2026-11-01', 'date_to' => '2026-11-05']);
     $document = new DOMDocument;
     $document->loadHTML($response->getContent(), LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
     $html = new DOMXPath($document);
+    expect(trim($html->evaluate('string(//nav[@aria-label="Main navigation"]/a[@href="'.route('exports.index').'"])')))->toBe('Reports');
     expect($html->evaluate('count(//form[starts-with(@action, "'.route('exports.index').'")]/@data-busy-form)'))->toBe(0.0);
     $this->assertDatabaseHas('audit_logs', [
-        'actor_id' => $this->admin->id, 'action' => 'tab_switched', 'subject_name' => 'Data Exports',
-        'statement' => 'Export Administrator switches to the "Data Exports" tab.',
+        'actor_id' => $this->admin->id, 'action' => 'tab_switched', 'subject_name' => 'Reports Test',
+        'statement' => 'Export Administrator switches to the "Reports Test" tab.',
     ]);
 });
 
@@ -103,7 +104,7 @@ test('only administrators have export permission and staff cannot download or fi
     $this->get('/exports')->assertForbidden();
     $this->post('/exports/clients', ['date_from' => '2026-11-01', 'date_to' => '2026-11-05'])->assertForbidden();
     $this->post('/exports/orders', ['date_from' => '2026-11-01', 'date_to' => '2026-11-05'])->assertForbidden();
-    $this->get(route('dashboard'))->assertOk()->assertDontSeeText('Data Exports');
+    $this->get(route('dashboard'))->assertOk()->assertDontSeeText('Reports');
 });
 
 test('guests must sign in before viewing or downloading exports', function (): void {
