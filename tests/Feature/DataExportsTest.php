@@ -89,8 +89,8 @@ test('administrators can find separate client and order exports in the navigatio
     expect(trim($html->evaluate('string(//nav[@aria-label="Main navigation"]/a[@href="'.route('exports.index').'"])')))->toBe('Reports');
     expect($html->evaluate('count(//form[starts-with(@action, "'.route('exports.index').'")]/@data-busy-form)'))->toBe(0.0);
     $this->assertDatabaseHas('audit_logs', [
-        'actor_id' => $this->admin->id, 'action' => 'tab_switched', 'subject_name' => 'Reports',
-        'statement' => 'Export Administrator switches to the "Reports" tab.',
+        'actor_id' => $this->admin->id, 'action' => 'tab_switched', 'subject_name' => 'Reports Test',
+        'statement' => 'Export Administrator switches to the "Reports Test" tab.',
     ]);
 });
 
