@@ -22,7 +22,7 @@ class RecordPageActivity
         'orders.payments.create' => 'Orders',
         'orders.show' => 'Orders',
         'balances.index' => 'Balances',
-        'exports.index' => 'Data Exports',
+        'exports.index' => 'Reports',
         'staff.index' => 'Staff accounts',
         'audit-logs.index' => 'Audit Logs',
     ];

@@ -48,7 +48,7 @@
             @can('export-data')
                 <a href="{{ route('exports.index') }}" @if (request()->routeIs('exports.*')) aria-current="page" @endif class="workspace-link">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8m-8 4h8m-4-4v7" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                    Data Exports
+                    Reports
                 </a>
             @endcan
             @can('manage-staff')
