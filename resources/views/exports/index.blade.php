@@ -1,5 +1,5 @@
-<x-app-layout title="Reports">
-    <x-page-heading title="Reports" description="Choose a date range and download an Excel report for your clients or orders." />
+<x-app-layout title="Data Exports">
+    <x-page-heading title="Data Exports" eyebrow="Reports" description="Choose a date range and download an Excel report for your clients or orders." />
 
     <div class="mt-8 grid items-start gap-6 xl:grid-cols-2">
         @foreach (['clients' => 'Clients', 'orders' => 'Orders'] as $type => $label)
