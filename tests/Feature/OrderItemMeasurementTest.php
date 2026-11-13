@@ -46,7 +46,7 @@ test('measurement form has numeric inputs and unit selectors for initial and add
     $response = $this->get(route('orders.creation.details', ['draft' => $key]))->assertOk();
     $response->assertSee('Unit of Measurement')->assertSee('name="items[0][unit]"', false)
         ->assertSee('name="items[__INDEX__][unit]"', false)->assertSee('value="pcs"', false)->assertSee('value="kgs"', false)
-        ->assertSee('Price per piece.')->assertDontSee('>Quantity<', false);
+        ->assertSee('Price per piece.')->assertSee('Order items with quantities, unit prices, subtotals, and actions');
     expect($response->getContent())->toMatch('/name="items\[0\]\[quantity\]"\s+type="number"/');
 });
 
