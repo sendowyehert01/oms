@@ -19,13 +19,19 @@
         <p class="mt-4 text-sm font-semibold text-emerald-700 dark:text-emerald-300">This order is complete. No further confirmations are needed.</p>
     @elseif ($order->status === 'Delivered' && $summary['balance_in_cents'] === 0)
         @can('updateStatus', $order)
-            <form method="POST" action="{{ route('orders.status.update', $order) }}" data-busy-form="Completing order..." class="mt-4">
-                @csrf
-                <input type="hidden" name="submission_key" value="{{ (string) \Illuminate\Support\Str::uuid() }}">
-                <input type="hidden" name="workflow_version" value="{{ $order->workflow_version }}">
-                <input type="hidden" name="action" value="complete">
-                <button type="submit" class="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white">Mark order Completed</button>
-            </form>
+            <a id="order-completion-action" href="#order-completion-confirmation" data-order-step-link aria-haspopup="dialog" aria-controls="order-completion-confirmation" class="mt-4 inline-flex min-h-11 items-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700">Mark order Completed</a>
+            <x-order-action-dialog id="order-completion-confirmation" title="Complete this order" description="Full delivery is confirmed and the balance is settled. Mark this order Completed?" :open-on-error="($errors->any() || session('error')) && old('action') === 'complete'">
+                <form method="POST" action="{{ route('orders.status.update', $order) }}" data-checklist-form data-busy-form="Completing order...">
+                    @csrf
+                    <input type="hidden" name="submission_key" value="{{ (string) \Illuminate\Support\Str::uuid() }}">
+                    <input type="hidden" name="workflow_version" value="{{ $order->workflow_version }}">
+                    <input type="hidden" name="action" value="complete">
+                    <div class="flex flex-wrap justify-end gap-3">
+                        <button type="button" data-checklist-close class="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold dark:border-slate-700">Cancel</button>
+                        <button type="submit" class="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white">Mark order Completed</button>
+                    </div>
+                </form>
+            </x-order-action-dialog>
         @else
             <p class="mt-4 text-sm text-slate-600 dark:text-slate-400">An administrator can now mark this order Completed.</p>
         @endcan

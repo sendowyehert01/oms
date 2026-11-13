@@ -1,6 +1,6 @@
 @props(['order', 'history'])
 
-<section aria-labelledby="workflow-history-heading" class="mt-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 dark:border-slate-800 dark:bg-slate-900">
+<section data-order-history aria-labelledby="workflow-history-heading" class="mt-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 dark:border-slate-800 dark:bg-slate-900">
     <h2 id="workflow-history-heading" class="text-lg font-semibold">Status history</h2>
     <ol class="mt-5 divide-y divide-slate-100 dark:divide-slate-800">
         @forelse ($history as $entry)

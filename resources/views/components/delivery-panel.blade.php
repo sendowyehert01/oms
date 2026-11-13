@@ -16,9 +16,9 @@
     @endif
     @can('updateStatus', $order)
         @if ($order->status === 'Ready for delivery' && $allReady)
-            <details id="delivery-confirmation" open class="mt-4 scroll-mt-24 rounded-lg border border-slate-200 p-4 dark:border-slate-700">
-                <summary class="cursor-pointer py-2 font-semibold text-brand-700 dark:text-brand-300">Confirm full delivery</summary>
-                <form method="POST" action="{{ route('orders.status.update', $order) }}" data-busy-form="Confirming delivery..." class="mt-4 space-y-4">
+            <a id="delivery-confirmation-action" href="#delivery-confirmation" data-order-step-link aria-haspopup="dialog" aria-controls="delivery-confirmation" class="mt-4 inline-flex min-h-11 items-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700">Confirm full delivery</a>
+            <x-order-action-dialog id="delivery-confirmation" title="Confirm full delivery" description="Confirm only after the recipient has received all items in the full ordered quantities." :open-on-error="($errors->any() || session('error')) && old('action') === 'deliver'">
+                <form method="POST" action="{{ route('orders.status.update', $order) }}" data-checklist-form data-busy-form="Confirming delivery..." class="space-y-4">
                     @csrf
                     <input type="hidden" name="submission_key" value="{{ (string) \Illuminate\Support\Str::uuid() }}">
                     <input type="hidden" name="workflow_version" value="{{ $order->workflow_version }}">
@@ -26,9 +26,12 @@
                     <x-form-input name="delivery_date" type="date" label="Delivery date" :value="old('delivery_date', now(config('app.reporting_timezone'))->toDateString())" :min="$order->order_date->toDateString()" :max="now(config('app.reporting_timezone'))->toDateString()" />
                     <x-form-input name="delivery_recipient" label="Recipient" :value="old('delivery_recipient')" maxlength="255" />
                     <x-form-textarea name="notes" id="delivery-notes" label="Delivery notes" :value="old('action') === 'deliver' ? old('notes') : ''" :required="false" maxlength="2000" />
-                    <button type="submit" class="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white">Confirm delivery of all items</button>
+                    <div class="flex flex-wrap justify-end gap-3">
+                        <button type="button" data-checklist-close class="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold dark:border-slate-700">Cancel</button>
+                        <button type="submit" class="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white">Confirm delivery of all items</button>
+                    </div>
                 </form>
-            </details>
+            </x-order-action-dialog>
         @elseif ($order->status === 'Ready for delivery')
             <p class="mt-4 text-sm text-amber-700 dark:text-amber-300">Resolve outstanding item readiness checks before confirming delivery.</p>
         @endif

@@ -36,6 +36,7 @@
     html { color-scheme: light; }
     html[data-theme='dark'] { color-scheme: dark; }
     body { min-width: 320px; }
+    body[data-checklist-dialog-open] { overflow: hidden; }
     button:not(:disabled), summary { cursor: pointer; }
     button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
     :focus-visible { outline: 2px solid var(--color-brand-500); outline-offset: 4px; }

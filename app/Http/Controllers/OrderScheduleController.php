@@ -8,17 +8,18 @@ use App\Models\User;
 use App\OrderWorkflow;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class OrderScheduleController extends Controller
 {
-    public function __invoke(UpdateOrderScheduleRequest $request, Order $order, OrderWorkflow $workflow): RedirectResponse
+    public function __invoke(UpdateOrderScheduleRequest $request, Order $order, OrderWorkflow $workflow): JsonResponse|RedirectResponse
     {
         $data = [...$request->validated(), 'action' => 'schedule_delivery'];
         try {
-            $workflow->perform($order, $request->user(), $data, function (Order $locked, User $actor, array $data) use ($workflow): void {
+            $updatedOrder = $workflow->perform($order, $request->user(), $data, function (Order $locked, User $actor, array $data) use ($workflow): void {
                 if (in_array($locked->status, ['Delivered', 'Completed'], true)) {
                     throw ValidationException::withMessages(['target_delivery_date' => 'Reopen the order before changing a historical delivery schedule.']);
                 }
@@ -32,7 +33,15 @@ class OrderScheduleController extends Controller
         } catch (Throwable $exception) {
             report($exception);
 
+            if ($request->hasHeader('X-Order-Checklist-Fragment') && $request->expectsJson()) {
+                return response()->json(['message' => 'The delivery schedule could not be saved. Please try again.'], 503);
+            }
+
             return to_route('orders.show', $order)->withInput()->with('error', 'The delivery schedule could not be saved. Please try again.');
+        }
+
+        if ($request->hasHeader('X-Order-Checklist-Fragment') && $request->expectsJson()) {
+            return response()->json(['message' => 'Delivery schedule saved.', 'workflow_version' => $updatedOrder->workflow_version]);
         }
 
         return to_route('orders.show', $order)->with('success', 'Delivery schedule saved.');

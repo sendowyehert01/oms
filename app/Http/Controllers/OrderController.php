@@ -90,6 +90,20 @@ class OrderController extends Controller
         $orderId = filter_var($order, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
         try {
+            if ($request->hasHeader('X-Order-Checklist-Fragment')) {
+                abort_if($orderId === false, 404);
+
+                $workflowOrder = Order::query()->with('items')->findOrFail($orderId);
+                Gate::authorize('view', $workflowOrder);
+                $paymentSummary = $paymentEntries->summary($workflowOrder);
+                $statusHistory = $request->header('X-Order-Checklist-History') === '1'
+                    ? $workflowOrder->statusHistory()->paginate(10, ['*'], 'history_page')->withQueryString()
+                    : null;
+
+                return response()->view('orders.checklist', compact('workflowOrder', 'paymentSummary', 'statusHistory'))
+                    ->withHeaders(['Cache-Control' => 'private, no-store', 'Vary' => 'X-Order-Checklist-Fragment, X-Order-Checklist-History']);
+            }
+
             $details = $orderId === false ? null : $orderEntries->find($orderId, $request->user());
             $workflowOrder = $details !== null ? Order::query()->findOrFail($orderId) : null;
             $paymentSummary = $workflowOrder !== null ? $paymentEntries->summary($workflowOrder) : null;

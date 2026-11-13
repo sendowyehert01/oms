@@ -20,6 +20,9 @@
         @if (request()->routeIs('orders.payments.create'))
             @vite('resources/js/record-payment.js')
         @endif
+        @if (request()->routeIs('orders.show'))
+            @vite('resources/js/order-checklist.js')
+        @endif
         @if (request()->routeIs('orders.index'))
             <meta name="csrf-token" content="{{ csrf_token() }}">
             @vite('resources/js/delete-order.js')

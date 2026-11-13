@@ -69,13 +69,13 @@ class OrderWorkflow
             $previous = OrderStatusHistory::query()->where('submission_key', $data['submission_key'])->first();
             if ($previous !== null) {
                 if ($previous->order_id !== $locked->id || $previous->actor_id !== $actor->id || $previous->request_hash !== $this->fingerprint($data)) {
-                    throw ValidationException::withMessages(['submission_key' => 'This form was already used for another change. Refresh the order.']);
+                    throw ValidationException::withMessages(['submission_key' => 'This form was already used for another change. Refresh the order checklist.']);
                 }
 
                 return $locked;
             }
             if ($locked->workflow_version !== (int) $data['workflow_version']) {
-                throw ValidationException::withMessages(['workflow_version' => 'This order changed after you opened the form. Refresh the page and review its latest progress.']);
+                throw ValidationException::withMessages(['workflow_version' => 'This order changed after you opened the form. Refresh the order checklist and review its latest progress.']);
             }
             $operation($locked, $actor, $data);
             $locked->workflow_version++;

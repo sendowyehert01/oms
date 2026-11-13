@@ -101,12 +101,28 @@
     $completeHasErrors = $hasFailedSave && old('action') === 'complete';
 @endphp
 
-<section aria-labelledby="order-checklist-heading" class="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
+<section data-order-checklist data-order-id="{{ $order->id }}" data-workflow-version="{{ $order->workflow_version }}" data-checklist-url="{{ route('orders.show', ['order' => $order] + request()->query()) }}" aria-labelledby="order-checklist-heading" class="mb-6 min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <h2 id="order-checklist-heading" tabindex="-1" class="scroll-mt-24 text-lg font-semibold">Order checklist</h2>
-        <x-order-status :status="$order->status" />
+        <div class="flex flex-wrap items-center gap-3">
+            <span data-checklist-status><x-order-status :status="$order->status" /></span>
+            <button id="order-checklist-refresh" type="button" data-checklist-refresh hidden class="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800">
+                <svg class="size-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M16 7a6.5 6.5 0 1 0 .5 5M16 3v4h-4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                <span data-checklist-refresh-label>Refresh checklist</span>
+            </button>
+        </div>
     </div>
-    <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Follow these three steps. The next action updates after each save; you can open any step to review its details.</p>
+    <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Review each item in the table, then choose its next action. Forms open separately so you can focus on one item at a time.</p>
+    <p data-checklist-message tabindex="-1" role="status" @if (! session('success')) hidden @endif class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{{ session('success') }}</p>
+    <div data-checklist-error tabindex="-1" role="alert" hidden class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200"></div>
+    <div data-checklist-server-errors class="mt-4"><x-form-errors /></div>
+    <noscript>
+        <style>
+            dialog[data-checklist-dialog] { display: block; position: static; width: 100%; max-height: none; margin: 1rem 0; }
+            [data-checklist-close] { display: none; }
+        </style>
+        <p class="mt-4 text-sm text-slate-600 dark:text-slate-400">Open a step to use its forms below the table.</p>
+    </noscript>
     <div class="mt-4 rounded-xl border border-brand-200 bg-brand-50 p-4 dark:border-brand-900 dark:bg-brand-950">
         <p class="text-xs font-semibold tracking-wide text-brand-700 uppercase dark:text-brand-300">{{ $isComplete ? 'All done' : 'Next step' }}</p>
         <h3 id="order-next-action" class="mt-1 font-semibold">{{ $nextTitle }}</h3>
@@ -128,25 +144,29 @@
             </summary>
             <div class="border-t border-slate-200 p-4 sm:p-5 dark:border-slate-800">
                 <h3 id="production-heading" tabindex="-1" class="scroll-mt-24 font-semibold">Stock and production</h3>
-                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Check stock, start production where needed, and confirm each item is ready. The order becomes ready for delivery when every item is ready.</p>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Check stock, start production where needed, and confirm each item is ready. The order becomes ready for delivery when every item is ready. Choose Actions in the row for the item you want to update.</p>
                 @cannot('updateStatus', $order)
                     <p class="mt-3 text-sm text-slate-600 dark:text-slate-400">Only administrators can update availability and production progress. You can follow their progress here.</p>
                 @endcannot
                 <x-item-production-panel :order="$order" />
                 @can('updateStatus', $order)
                     @if ($order->status !== 'Pending')
-                        <details id="order-correction-details" @if ($needsHistoricalReview || ($hasFailedSave && old('action') === 'reopen')) open @endif class="mt-5 scroll-mt-24 border-t border-slate-200 pt-4 dark:border-slate-800">
-                            <summary class="min-h-11 py-2 text-sm font-semibold text-brand-700 dark:text-brand-300">Correct status / reopen order</summary>
-                            <form method="POST" action="{{ route('orders.status.update', $order) }}" data-busy-form="Reopening..." class="mt-4 space-y-4">
+                        <div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800">
+                            <a id="order-correction-action" href="#order-correction-details" data-order-step-link aria-haspopup="dialog" aria-controls="order-correction-details" class="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold text-brand-700 dark:border-slate-700 dark:text-brand-300">Correct status / reopen order</a>
+                        </div>
+                        <x-order-action-dialog id="order-correction-details" title="Reopen order for correction" description="Return this order and all its items to Pending. Stock checks and production progress will be reset. Recorded payments and previous history are retained." :open-on-error="$hasFailedSave && old('action') === 'reopen'">
+                            <form method="POST" action="{{ route('orders.status.update', $order) }}" data-checklist-form data-busy-form="Reopening..." class="space-y-4">
                                 @csrf
                                 <input type="hidden" name="submission_key" value="{{ (string) \Illuminate\Support\Str::uuid() }}">
                                 <input type="hidden" name="workflow_version" value="{{ $order->workflow_version }}">
                                 <input type="hidden" name="action" value="reopen">
-                                <p class="text-sm text-slate-600 dark:text-slate-400">Return this order and its items to Pending for correction. Finished-stock checks will be reset. Recorded payments and previous history are retained.</p>
                                 <x-form-textarea name="notes" id="reopen-reason" label="Correction reason" :value="old('action') === 'reopen' ? old('notes') : ''" :required="true" maxlength="2000" />
-                                <button type="submit" class="min-h-11 rounded-lg border border-brand-200 px-5 text-sm font-semibold text-brand-700 dark:border-brand-800 dark:text-brand-300">Reopen as Pending</button>
+                                <div class="flex flex-wrap justify-end gap-3">
+                                    <button type="button" data-checklist-close class="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold dark:border-slate-700">Cancel</button>
+                                    <button type="submit" class="min-h-11 rounded-lg border border-brand-200 px-5 text-sm font-semibold text-brand-700 dark:border-brand-800 dark:text-brand-300">Reopen as Pending</button>
+                                </div>
                             </form>
-                        </details>
+                        </x-order-action-dialog>
                     @endif
                 @endcan
             </div>
@@ -161,7 +181,7 @@
                 </span>
             </summary>
             <div class="border-t border-slate-200 p-4 sm:p-5 dark:border-slate-800">
-                <x-order-schedule-panel :order="$order" :expanded="$currentStep === 2 && $order->target_delivery_date === null" />
+                <x-order-schedule-panel :order="$order" />
                 <x-delivery-panel :order="$order" :all-ready="$allReady" :delivery-confirmed="$deliveryConfirmed" />
             </div>
         </details>
