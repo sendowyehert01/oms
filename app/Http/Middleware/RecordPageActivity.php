@@ -40,7 +40,7 @@ class RecordPageActivity
         $actor = $request->user();
 
         if (! $actor instanceof User || ! $actor->exists || ! $request->isMethod('GET') || ! $response->isSuccessful()
-            || $request->expectsJson() || $request->hasHeader('X-Orders-Fragment')
+            || $request->expectsJson() || $request->hasHeader('X-Orders-Fragment') || $request->hasHeader('X-Order-Checklist-Fragment')
             || str_contains($request->header('Sec-Purpose', '').' '.$request->header('Purpose', ''), 'prefetch')) {
             return $response;
         }

@@ -4,11 +4,6 @@
         <a href="{{ $returnToOrdersUrl }}" class="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-4 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:border-slate-700 dark:hover:bg-slate-800">Back to Orders</a>
     </x-page-heading>
 
-    @if (session('success'))
-        <p role="status" class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{{ session('success') }}</p>
-    @endif
-
-    <x-form-errors />
     @if ($workflowOrder !== null)
         <x-order-checklist :order="$workflowOrder" :summary="$paymentSummary" />
     @endif
@@ -23,7 +18,7 @@
                 @if (empty($order['terms_of_payment']) && ! empty($order['due_date']))
                     <div><dt class="text-sm text-slate-500 dark:text-slate-400">Legacy due date</dt><dd class="mt-1 font-medium"><time datetime="{{ $order['due_date'] }}">{{ \Illuminate\Support\Carbon::parse($order['due_date'])->format('M j, Y') }}</time></dd></div>
                 @endif
-                <div><dt class="text-sm text-slate-500 dark:text-slate-400">Order status</dt><dd class="mt-2"><x-order-status :status="$order['status']" /></dd></div>
+                <div><dt class="text-sm text-slate-500 dark:text-slate-400">Order status</dt><dd data-order-info-status class="mt-2"><x-order-status :status="$order['status']" /></dd></div>
             </dl>
         </section>
 
