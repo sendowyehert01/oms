@@ -72,11 +72,78 @@ test('the orders list starts customer choice before showing the order form and c
         ->assertSee('Subtotal (PHP)')
         ->assertSee('Total amount (PHP)')
         ->assertSee('Add item')
+        ->assertSee('Refresh items')
+        ->assertSee('Actions')
+        ->assertSee('data-item-template', false)
+        ->assertSee('data-item-dialog', false)
         ->assertSee('Remove item')
         ->assertSee('formaction="'.route('orders.creation.cancel').'"', false)
         ->assertSee('Cancel');
 
     $this->assertDatabaseCount('customers', 0);
+    $this->assertDatabaseCount('orders', 0);
+});
+
+test('retained items have table actions linked to closed dialogs with all specifications outside the table', function (): void {
+    $key = startCreateOrderWithCustomer($this, validCreateOrderData());
+    $items = [
+        2 => ['product_name' => 'Piece bags', 'quantity' => 3, 'unit' => 'pcs', 'unit_price' => '9.95'],
+        7 => [
+            'product_name' => 'Weight bags', 'quantity' => '2.50', 'unit' => 'kgs', 'unit_price' => '1.01',
+            'material_color' => 'Transparent', 'size' => '8 x 12 / 0.03 mm', 'print_design_colors' => 'Logo / 2 colors',
+            'sealing' => 'Others', 'sealing_other' => 'Custom seal', 'puncher' => 'Others',
+            'puncher_other' => 'Custom punch', 'customization_notes' => 'Pack flat.',
+        ],
+    ];
+    $this->post(route('orders.creation.back'), ['submission_key' => $key, 'terms_of_payment' => 'Net 30', 'items' => $items]);
+
+    $response = $this->get(route('orders.creation.details', ['draft' => $key]))->assertOk();
+    $document = new DOMDocument;
+    $document->loadHTML($response->getContent(), LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
+    $xpath = new DOMXPath($document);
+
+    expect($xpath->query('//tbody[@data-items-table-body]/tr[@data-item-row]')->length)->toBe(2);
+    expect($xpath->query('//tbody[@data-items-table-body]//input | //tbody[@data-items-table-body]//select | //tbody[@data-items-table-body]//textarea')->length)->toBe(0);
+    expect($xpath->query('//form[@data-create-order]//form')->length)->toBe(0);
+    foreach ($items as $index => $item) {
+        $dialog = $document->getElementById('order-item-dialog-'.$index);
+        expect($dialog)->toBeInstanceOf(DOMElement::class);
+        expect($dialog->tagName)->toBe('dialog');
+        expect($dialog->hasAttribute('open'))->toBeFalse();
+        expect($dialog->hasAttribute('data-item-auto-open'))->toBeFalse();
+        expect($xpath->query('//tr[@data-item-row="'.$index.'"]//a[@aria-controls="order-item-dialog-'.$index.'"]')->length)->toBe(1);
+        expect($xpath->query('//tr[@data-item-row="'.$index.'"]//button[@data-remove-item="'.$index.'"]')->length)->toBe(1);
+        foreach ($item as $field => $value) {
+            $controls = $xpath->query('.//*[@name="items['.$index.']['.$field.']"]', $dialog);
+            expect($controls->length)->toBe(1);
+            $control = $controls->item(0);
+            $actual = match ($control->tagName) {
+                'select' => $xpath->query('./option[@selected]', $control)->item(0)->getAttribute('value'),
+                'textarea' => $control->textContent,
+                default => $control->getAttribute('value'),
+            };
+            expect($actual)->toBe((string) $value);
+        }
+    }
+    $this->assertDatabaseCount('orders', 0);
+});
+
+test('item validation reopens only the affected dialog and preserves the other table rows', function (): void {
+    $key = startCreateOrderWithCustomer($this, validCreateOrderData());
+    $data = validCreateOrderData(['submission_key' => $key]);
+    $data['items'][1] = ['product_name' => 'Invalid weight bags', 'quantity' => 0, 'unit' => 'kgs', 'unit_price' => '1.01', 'sealing' => 'Others', 'sealing_other' => ''];
+    $this->post(route('orders.store'), $data)->assertSessionHasErrors(['items.1.quantity', 'items.1.sealing_other']);
+
+    $response = $this->get(route('orders.creation.details', ['draft' => $key]))->assertOk();
+    $document = new DOMDocument;
+    $document->loadHTML($response->getContent(), LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
+    expect($document->getElementById('order-item-dialog-0')->hasAttribute('data-item-auto-open'))->toBeFalse();
+    expect($document->getElementById('order-item-dialog-1')->hasAttribute('data-item-auto-open'))->toBeTrue();
+    expect($document->getElementById('item-1-quantity')->getAttribute('aria-invalid'))->toBe('true');
+    $xpath = new DOMXPath($document);
+    expect($xpath->query('//select[@id="item-1-unit"]/option[@selected]')->item(0)->getAttribute('value'))->toBe('kgs');
+    expect($document->getElementById('order-items-name-0')->textContent)->toBe('Plastic bags');
+    expect($document->getElementById('order-items-name-1')->textContent)->toBe('Invalid weight bags');
     $this->assertDatabaseCount('orders', 0);
 });
 

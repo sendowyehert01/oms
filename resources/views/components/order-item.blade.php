@@ -3,7 +3,7 @@
 @php($item = is_array($item) ? $item : [])
 @php($measurementUnit = is_scalar($item['unit'] ?? 'pcs') ? (string) ($item['unit'] ?? 'pcs') : 'pcs')
 
-<fieldset data-order-item class="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+<fieldset data-order-item data-item-index="{{ $index }}" class="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
     <legend class="px-2 text-sm font-semibold">Order item</legend>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <x-form-input :name="'items['.$index.'][product_name]'" :id="'item-'.$index.'-name'" :error="'items.'.$index.'.product_name'" label="Item name" :value="$item['product_name'] ?? ''" maxlength="255" />
@@ -51,5 +51,5 @@
             </div>
         </div>
     </div>
-    <button type="button" data-remove-item class="mt-3 inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-rose-700 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 dark:text-rose-300 dark:hover:bg-rose-950">Remove item</button>
+    <button type="button" data-remove-item data-inline-remove class="mt-3 inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-rose-700 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 dark:text-rose-300 dark:hover:bg-rose-950">Remove item</button>
 </fieldset>
