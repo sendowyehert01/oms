@@ -35,13 +35,7 @@ services:
       - key: SESSION_DRIVER
         value: database
       - key: PAYMENT_RECEIPT_STORAGE
-        value: supabase
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SECRET_KEY
-        sync: false
-      - key: SUPABASE_STORAGE_BUCKET
-        value: payment-receipts
+        value: local
       - key: SESSION_SECURE_COOKIE
         value: "true"
       - key: CACHE_STORE

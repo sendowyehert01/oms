@@ -52,7 +52,22 @@ The Blueprint generates an encryption secret and supplies the database's interna
 
 Database migrations and Laravel cache warmup run when the container starts because free web services do not support pre-deploy commands. Apache serves only `public/` and listens on Render's `PORT`. Render monitors `/up`, and the application trusts the proxy's HTTPS headers. Sessions use the PostgreSQL `sessions` table, while temporary cache files stay inside the container.
 
-The free web service sleeps after 15 minutes of inactivity. The free PostgreSQL database expires after 30 days and has a 1 GB limit. This configuration is for testing; anyone with the app link can create or delete orders. The Blueprint does not copy your local MySQL data or seed the remote database.
+Receipt uploads use `PAYMENT_RECEIPT_STORAGE=local` and are stored privately in `storage/app/private/payment-receipts`. Supabase credentials are not required. Receipts still download through the application's authorized payment receipt route and accept JPG, PNG, or PDF files up to 5 MB.
+
+For an existing Render web service, set `PAYMENT_RECEIPT_STORAGE` to `local`, remove the `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and `SUPABASE_STORAGE_BUCKET` environment variables, and redeploy with this configuration.
+
+The free web service sleeps after 15 minutes of inactivity. Its filesystem is temporary: uploaded receipts can be lost when the service restarts, redeploys, or spins down. Render does not include free persistent storage for uploads. The free PostgreSQL database expires after 30 days and has a 1 GB limit. This configuration is for testing; access to orders requires an OMS account. The Blueprint does not copy your local MySQL data or seed the remote database.
+
+When persistent receipt storage is needed, upgrade the web service to the paid Starter plan and add a persistent disk mounted at `/var/www/html/storage/app/private`. Keep `PAYMENT_RECEIPT_STORAGE=local`. For Blueprint-managed services, change the web service's `plan` to `starter` and add this disk configuration under the web service:
+
+~~~yaml
+disk:
+  name: payment-receipts
+  mountPath: /var/www/html/storage/app/private
+  sizeGB: 5
+~~~
+
+The startup script prepares the upload directory for Apache's `www-data` user, including when a disk is mounted there. Only files written after the disk is attached are stored on that disk; adding a disk does not recover receipts lost on the free plan. The committed Blueprint stays free and does not provision a disk.
 
 ## Verification
 

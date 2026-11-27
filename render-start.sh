@@ -10,6 +10,9 @@ fi
 
 export APP_URL="${APP_URL:-${RENDER_EXTERNAL_URL:-http://localhost:${PORT:-10000}}}"
 
+mkdir -p storage/app/private
+chown www-data:www-data storage/app/private
+
 su -s /bin/sh www-data -c 'php artisan config:clear --no-interaction'
 su -s /bin/sh www-data -c 'php artisan migrate --force --no-interaction'
 if [ -n "${OMS_ADMIN_EMAIL:-}" ]; then
