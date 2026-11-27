@@ -36,7 +36,13 @@ class StoreOrderRequest extends FormRequest
     {
         $submissionKey = $this->input('submission_key');
 
-        return app(OrderDrafts::class)->find($this->session(), $submissionKey) !== null
+        $draft = app(OrderDrafts::class)->find($this->session(), $submissionKey);
+
+        if (($draft['customer_type'] ?? null) === 'existing' && $this->validator->errors()->has('customer_id')) {
+            return route('orders.creation.customer', ['type' => 'existing', 'draft' => $submissionKey]);
+        }
+
+        return $draft !== null
             ? route('orders.creation.details', ['draft' => $submissionKey])
             : parent::getRedirectUrl();
     }
@@ -58,7 +64,7 @@ class StoreOrderRequest extends FormRequest
     {
         return [
             'submission_key' => ['required', 'uuid'],
-            'customer_id' => ['nullable', 'integer', Rule::exists(Customer::class, 'id')],
+            'customer_id' => ['bail', 'nullable', 'integer', Customer::visibleIdRule($this->user())],
             'customer_name' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:255'],
             'contact_person' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:255'],
             'address' => [Rule::excludeIf($this->filled('customer_id')), 'required_without:customer_id', 'string', 'max:2000'],
@@ -97,6 +103,7 @@ class StoreOrderRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'customer_id.exists' => 'The selected customer is no longer available. Please select another customer.',
             'items.required' => 'Add at least one item to the order.',
             'items.min' => 'Add at least one item to the order.',
             'items.*.quantity.min' => 'Enter at least :min for the selected measurement unit.',

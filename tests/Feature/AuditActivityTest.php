@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AuditLog;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
@@ -56,7 +57,7 @@ test('fragments JSON requests and prefetches do not count as tab visits', functi
 
 test('full order views are tracked but history pagination and missing or inaccessible orders are excluded', function (): void {
     $actor = User::factory()->create(['name' => 'Jem Morales']);
-    $order = Order::factory()->hasItems(1)->create(['created_by' => $actor->id, 'order_date' => '2026-11-06']);
+    $order = Order::factory()->for(Customer::factory()->for($actor, 'creator'))->for($actor, 'creator')->hasItems(1)->create(['order_date' => '2026-11-06']);
     $other = Order::factory()->hasItems(1)->create();
     $this->actingAs($actor);
 
@@ -73,7 +74,7 @@ test('only successfully served receipts record a view and their contents are exc
     config(['payment-receipts.local_disk' => 'local']);
     Storage::fake('local');
     $actor = User::factory()->create(['name' => 'Jem Morales']);
-    $order = Order::factory()->create(['created_by' => $actor->id, 'order_date' => '2026-11-06']);
+    $order = Order::factory()->for(Customer::factory()->for($actor, 'creator'))->for($actor, 'creator')->create(['order_date' => '2026-11-06']);
     $path = 'payment-receipts/'.Str::uuid().'.pdf';
     Storage::disk('local')->put($path, 'Private receipt contents');
     $payment = Payment::factory()->for($order)->create(['receipt_storage' => 'local', 'receipt_path' => $path, 'receipt_name' => 'receipt.pdf', 'receipt_mime_type' => 'application/pdf']);

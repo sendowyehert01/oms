@@ -25,7 +25,7 @@ class OrderPolicy
 
     public function view(User $user, Order $order): Response
     {
-        return $order->created_by === $user->id || $order->customer?->created_by === $user->id
+        return $order->created_by === $user->id && $order->customer?->created_by === $user->id
             ? Response::allow()
             : Response::denyAsNotFound();
     }
@@ -54,8 +54,6 @@ class OrderPolicy
 
     public function scheduleDelivery(User $user, Order $order): Response
     {
-        return $order->created_by === $user->id
-            ? Response::allow()
-            : ($this->view($user, $order)->allowed() ? Response::deny() : Response::denyAsNotFound());
+        return $this->view($user, $order);
     }
 }

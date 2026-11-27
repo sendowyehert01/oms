@@ -6,7 +6,6 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\User;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Builder;
 
 class DailyPerformance
 {
@@ -37,7 +36,7 @@ class DailyPerformance
 
         foreach (['clients' => Customer::query(), 'orders' => Order::query()] as $metric => $query) {
             $counts = $query
-                ->when(! $user->isAdmin(), fn (Builder $query): Builder => $query->createdBy($user))
+                ->visibleTo($user)
                 ->where('created_at', '>=', $start)->where('created_at', '<', $end)
                 ->selectRaw($dateExpression, $bindings)->selectRaw('COUNT(*) AS creation_count')
                 ->groupBy('activity_date')->pluck('creation_count', 'activity_date');

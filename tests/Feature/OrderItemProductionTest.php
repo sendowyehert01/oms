@@ -2,6 +2,7 @@
 
 use App\ItemAvailability;
 use App\ItemProductionStatus;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
@@ -137,7 +138,7 @@ test('reopening resets item checks and progress while retaining money and audit 
 
 test('stock and production changes are admin only and scoped to the parent order', function (bool $visible): void {
     $staff = User::factory()->create();
-    $order = Order::factory()->hasItems(1)->create(['created_by' => $visible ? $staff->id : $this->admin->id]);
+    $order = Order::factory()->for(Customer::factory()->for($staff, 'creator'))->hasItems(1)->create(['created_by' => $visible ? $staff->id : $this->admin->id]);
     $this->actingAs($staff);
     $this->postJson(itemProductionUrl($order, $order->items->first()), itemProductionData($order, 'check_availability', ['stock_availability' => 'Available']))->assertStatus($visible ? 403 : 404);
     $this->assertDatabaseCount('order_status_histories', 0);

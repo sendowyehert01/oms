@@ -204,7 +204,7 @@ test('date changes include old and new values while unchanged saves and retries 
 
 test('forbidden item changes and premature completion cannot create success entries', function (): void {
     $staff = User::factory()->create();
-    $order = Order::factory()->hasItems(1)->create(['created_by' => $staff->id]);
+    $order = Order::factory()->for(Customer::factory()->for($staff, 'creator'))->for($staff, 'creator')->hasItems(1)->create();
     $this->actingAs($staff);
 
     $this->postJson(route('orders.items.production.update', ['order' => $order, 'item' => $order->items()->sole()]), auditChangeData($order, 'check_availability', ['stock_availability' => 'Available']))->assertForbidden();
@@ -236,7 +236,7 @@ test('audit snapshots and deleted order references survive actor changes and del
 test('protected unconfirmed and forbidden deletions leave no successful deletion activity', function (): void {
     $protected = Order::factory()->hasItems(1)->hasPayments(1)->create();
     $staff = User::factory()->create();
-    $unpaid = Order::factory()->hasItems(1)->create(['created_by' => $staff->id]);
+    $unpaid = Order::factory()->for(Customer::factory()->for($staff, 'creator'))->for($staff, 'creator')->hasItems(1)->create();
 
     $this->deleteJson(route('orders.destroy', $protected), ['confirmed' => true])->assertConflict();
     $this->deleteJson(route('orders.destroy', $unpaid), [])->assertUnprocessable()->assertJsonValidationErrors('confirmed');

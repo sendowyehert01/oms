@@ -9,7 +9,7 @@
     @if (auth()->user()->isAdmin())
         <noscript><p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Enable JavaScript to confirm and delete orders.</p></noscript>
     @else
-        <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Showing orders you created and all orders for clients you created. You can select any existing client when creating an order.</p>
+        <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Showing orders you created for your clients.</p>
     @endif
 
     @fragment('orders-list')

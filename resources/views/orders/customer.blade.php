@@ -39,7 +39,7 @@
             @if ($customerLoadError)
                 <p role="alert" class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200">Customers could not be loaded. Please try searching again.</p>
             @elseif ($customers->isEmpty())
-                <p class="rounded-xl border border-slate-200 bg-white p-6 text-sm dark:border-slate-800 dark:bg-slate-900">{{ $search === '' ? 'No customers have been saved yet.' : 'No customers match your search.' }} You can go back and choose New customer.</p>
+                <p class="rounded-xl border border-slate-200 bg-white p-6 text-sm dark:border-slate-800 dark:bg-slate-900">{{ $search === '' ? (auth()->user()->isAdmin() ? 'No customers have been saved yet.' : 'You have not created any customers yet.') : 'No customers match your search.' }} You can go back and choose New customer.</p>
             @endif
             @if ($customerOptions->isNotEmpty() && ! $customerLoadError)
                 <fieldset class="space-y-3">

@@ -38,7 +38,8 @@ test('production board requires authentication and scopes cards counts and filte
     $this->actingAs($staff);
     $response = $this->get(route('production.index'));
     $response->assertOk()->assertSee('Owned client')->assertDontSee('Hidden client')->assertDontSee('Hidden creator');
-    expect($response['orders']->total())->toBe(2)->and((int) $response['counts']->sum())->toBe(2);
+    expect($response['orders']->pluck('id')->all())->toBe([$own->id])->and((int) $response['counts']->sum())->toBe(1);
+    expect($response['creators']->modelKeys())->toBe([$staff->id]);
     $this->get(route('production.index', ['customer_id' => $hiddenClient->id]))->assertOk()->assertSee('No matching production orders')->assertDontSee('Hidden client');
     $this->get(route('production.index', ['created_by' => $other->id]))->assertOk()->assertDontSee('Hidden creator');
     $this->get(route('production.index', ['search' => app(OrderEntries::class)->number($own->id, $own->order_date->toDateString())]))->assertOk()->assertViewHas('orders', fn ($orders) => $orders->total() === 1);
@@ -111,12 +112,12 @@ test('staff schedule only orders they created and cannot update production throu
     $staff = User::factory()->create();
     $client = Customer::factory()->for($staff, 'creator')->create();
     $own = Order::factory()->for($client)->create(['created_by' => $staff->id, 'order_date' => '2026-11-01']);
-    $visible = Order::factory()->for($client)->create(['created_by' => $this->admin->id]);
+    $adminOrder = Order::factory()->for($client)->create(['created_by' => $this->admin->id]);
     $hidden = Order::factory()->create();
     $this->actingAs($staff);
     $this->postJson(route('orders.schedule.update', $own), [...schedulePayload($own), 'status' => 'Completed'])->assertRedirect();
     expect($own->fresh()->status)->toBe('Pending');
-    $this->postJson(route('orders.schedule.update', $visible), schedulePayload($visible))->assertForbidden();
+    $this->postJson(route('orders.schedule.update', $adminOrder), schedulePayload($adminOrder))->assertNotFound();
     $this->postJson(route('orders.schedule.update', $hidden), schedulePayload($hidden))->assertNotFound();
     $this->postJson(route('orders.status.update', $own), ['action' => 'reopen', 'notes' => 'Try bypass', ...schedulePayload($own->fresh())])->assertForbidden();
 });

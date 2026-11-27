@@ -24,11 +24,12 @@ class DashboardController extends Controller
             $performance = $dailyPerformance->summary($user);
             $outstanding = $balances->summary($user, perPage: 5);
             $clients = Customer::query()
-                ->when(! $user->isAdmin(), fn (Builder $query): Builder => $query->createdBy($user))
-                ->select('id', 'company_name', 'contact_person', 'created_at')->withCount('orders')
+                ->visibleTo($user)
+                ->select('id', 'company_name', 'contact_person', 'created_at')
+                ->withCount(['orders' => fn (Builder $query): Builder => $query->visibleTo($user)])
                 ->orderByDesc('id')->paginate(5, ['*'], 'clients_page')->withQueryString();
             $orders = Order::query()
-                ->when(! $user->isAdmin(), fn (Builder $query): Builder => $query->createdBy($user))
+                ->visibleTo($user)
                 ->select('id', 'customer_id', 'order_date', 'status', 'created_at')->with('customer:id,company_name')
                 ->orderByDesc('id')->paginate(5, ['*'], 'orders_page')->withQueryString();
         } catch (QueryException $exception) {

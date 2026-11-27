@@ -14,9 +14,10 @@ class DashboardMetrics
      */
     public function summary(User $user): array
     {
-        $clients = Customer::query()->when(! $user->isAdmin(), fn (Builder $query): Builder => $query->createdBy($user));
-        $clientsWithOrders = (clone $clients)->has('orders')->count();
-        $clientsWithoutOrders = (clone $clients)->doesntHave('orders')->count();
+        $clients = Customer::query()->visibleTo($user);
+        $visibleOrders = fn (Builder $query): Builder => $query->visibleTo($user);
+        $clientsWithOrders = (clone $clients)->whereHas('orders', $visibleOrders)->count();
+        $clientsWithoutOrders = (clone $clients)->whereDoesntHave('orders', $visibleOrders)->count();
 
         $statusCases = [];
         $statusBindings = [];
@@ -29,7 +30,7 @@ class DashboardMetrics
 
         $statusBindings[] = 'Other status';
         $counts = Order::query()
-            ->when(! $user->isAdmin(), fn (Builder $query): Builder => $query->createdBy($user))
+            ->visibleTo($user)
             ->selectRaw('CASE '.implode(' ', $statusCases).' ELSE ? END AS dashboard_status', $statusBindings)
             ->selectRaw('COUNT(*) AS order_count')
             ->groupBy('dashboard_status')

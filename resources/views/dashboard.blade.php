@@ -31,7 +31,7 @@
             </div>
         @endforeach
     </dl>
-    <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">{{ $user->isAdmin() ? 'Clients are counted once, even when they have multiple orders. Totals include all saved records.' : 'Totals count clients and orders you created. Your clients may also have orders created by an admin; those orders are available on the Orders page.' }}</p>
+    <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">{{ $user->isAdmin() ? 'Clients are counted once, even when they have multiple orders. Totals include all saved records.' : 'Totals include your clients and the orders you created for them.' }}</p>
 
     <div class="mt-8 grid items-start gap-6 xl:grid-cols-[minmax(0,.95fr)_minmax(0,1.05fr)]">
         <section aria-labelledby="order-status-heading" class="oms-surface rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
