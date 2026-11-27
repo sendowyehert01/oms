@@ -20,11 +20,12 @@ test('staff dashboard shows personal totals lists statuses and account details',
     $other = User::factory()->create();
     $admin = User::factory()->admin()->create();
     $ownClient = Customer::factory()->for($staff, 'creator')->create(['company_name' => 'Personal client']);
-    Customer::factory()->for($staff, 'creator')->create(['company_name' => 'Without orders']);
+    $clientWithAdminOrder = Customer::factory()->for($staff, 'creator')->create(['company_name' => 'Without orders']);
     $privateClient = Customer::factory()->for($other, 'creator')->create(['company_name' => 'Private client']);
     Customer::factory()->create(['company_name' => 'Legacy client']);
     $ownOrder = Order::factory()->for($ownClient)->for($staff, 'creator')->create(['status' => 'In production']);
     $adminOrder = Order::factory()->for($ownClient)->for($admin, 'creator')->create(['status' => 'Completed']);
+    Order::factory()->for($clientWithAdminOrder)->for($admin, 'creator')->hasItems(1)->create();
     Order::factory()->for($privateClient)->for($other, 'creator')->create();
     Order::factory()->create();
 
@@ -40,26 +41,29 @@ test('staff dashboard shows personal totals lists statuses and account details',
     expect($response['metrics']['orders'])->toBe(1);
     expect(array_column($response['metrics']['statuses'], 'count'))->toBe([0, 1, 0, 0, 0]);
     expect($response['clients']->total())->toBe(2);
+    expect($response['clients']->firstWhere('id', $ownClient->id)->orders_count)->toBe(1);
+    expect($response['clients']->firstWhere('id', $clientWithAdminOrder->id)->orders_count)->toBe(0);
+    expect($response['outstanding']['orders_count'])->toBe(0);
     expect($response['orders']->pluck('id')->all())->toBe([$ownOrder->id]);
     expect($response['performance']['days'][29])->toBe(['date' => '2026-11-04', 'clients' => 2, 'orders' => 1]);
     $this->get(route('orders.index'))->assertOk();
 });
 
-test('shared client orders count toward the order creators dashboard without counting the client as theirs', function (): void {
+test('neither staff dashboard includes an order entered for another staff members client', function (): void {
     $staff = User::factory()->create();
     $other = User::factory()->create();
     $client = Customer::factory()->for($other, 'creator')->create(['company_name' => 'Shared client']);
     $ownOrder = Order::factory()->for($client)->for($staff, 'creator')->hasItems(1)->create(['status' => 'Completed']);
     $otherOrder = Order::factory()->for($client)->for($other, 'creator')->hasItems(1)->create(['status' => 'Pending']);
 
-    $response = $this->actingAs($staff)->get(route('dashboard'))->assertOk()->assertSee('Shared client');
+    $response = $this->actingAs($staff)->get(route('dashboard'))->assertOk()->assertDontSee('Shared client');
 
     expect($response['metrics']['clients'])->toBe(['total' => 0, 'with_orders' => 0, 'without_orders' => 0]);
-    expect($response['metrics']['orders'])->toBe(1);
-    expect(array_column($response['metrics']['statuses'], 'count'))->toBe([0, 0, 0, 0, 1]);
+    expect($response['metrics']['orders'])->toBe(0);
+    expect(array_column($response['metrics']['statuses'], 'count'))->toBe([0, 0, 0, 0, 0]);
     expect($response['clients']->total())->toBe(0);
-    expect($response['orders']->pluck('id')->all())->toBe([$ownOrder->id]);
-    expect($response['performance']['days'][29])->toBe(['date' => '2026-11-04', 'clients' => 0, 'orders' => 1]);
+    expect($response['orders']->total())->toBe(0);
+    expect($response['performance']['days'][29])->toBe(['date' => '2026-11-04', 'clients' => 0, 'orders' => 0]);
     $this->get(route('orders.show', $otherOrder))->assertNotFound();
 
     $ownerDashboard = $this->actingAs($other)->get(route('dashboard'))->assertOk();
@@ -67,7 +71,8 @@ test('shared client orders count toward the order creators dashboard without cou
     expect($ownerDashboard['metrics']['orders'])->toBe(1);
     expect($ownerDashboard['orders']->pluck('id')->all())->toBe([$otherOrder->id]);
     $ownerOrders = $this->get(route('orders.index'))->assertOk();
-    expect($ownerOrders['orders']->pluck('id')->all())->toBe([$otherOrder->id, $ownOrder->id]);
+    expect($ownerOrders['orders']->pluck('id')->all())->toBe([$otherOrder->id]);
+    $this->get(route('orders.show', $ownOrder))->assertNotFound();
 });
 
 test('new staff has a real empty dashboard even when unassigned and other staff records exist', function (): void {

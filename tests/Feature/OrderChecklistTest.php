@@ -2,6 +2,7 @@
 
 use App\ItemAvailability;
 use App\ItemProductionStatus;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
@@ -303,7 +304,7 @@ test('an empty order explains why preparation cannot proceed', function (): void
 
 test('staff can follow progress and schedule their order while admin confirmations stay unavailable', function (): void {
     $staff = User::factory()->create();
-    $order = readyChecklistOrder(['created_by' => $staff->id]);
+    $order = readyChecklistOrder(['customer_id' => Customer::factory()->for($staff, 'creator'), 'created_by' => $staff->id]);
     $this->actingAs($staff);
 
     $response = $this->get(route('orders.show', $order));
@@ -320,7 +321,7 @@ test('staff can follow progress and schedule their order while admin confirmatio
 
 test('staff are directed to the remaining payment after confirmed delivery', function (): void {
     $staff = User::factory()->create();
-    $order = deliveredChecklistOrder(['created_by' => $staff->id]);
+    $order = deliveredChecklistOrder(['customer_id' => Customer::factory()->for($staff, 'creator'), 'created_by' => $staff->id]);
     $this->actingAs($staff);
 
     $response = $this->get(route('orders.show', $order));
@@ -333,7 +334,7 @@ test('staff are directed to the remaining payment after confirmed delivery', fun
 
 test('fully paid delivered orders explain that staff are waiting for administrator completion', function (): void {
     $staff = User::factory()->create();
-    $order = deliveredChecklistOrder(['created_by' => $staff->id]);
+    $order = deliveredChecklistOrder(['customer_id' => Customer::factory()->for($staff, 'creator'), 'created_by' => $staff->id]);
     Payment::factory()->for($order)->create(['amount' => '125.00', 'payment_type' => 'full_payment']);
     $this->actingAs($staff);
 
@@ -537,7 +538,7 @@ test('checklist fragments do not expose another staffs order or allow its items 
 
 test('staff can refresh their checklist and schedule delivery while item confirmations stay admin only', function (): void {
     $staff = User::factory()->create();
-    $order = Order::factory()->hasItems(1)->for($staff, 'creator')->create();
+    $order = Order::factory()->for(Customer::factory()->for($staff, 'creator'))->for($staff, 'creator')->hasItems(1)->create();
     $this->actingAs($staff);
 
     $this->get(route('orders.show', $order), ['X-Order-Checklist-Fragment' => '1'])

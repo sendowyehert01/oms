@@ -49,7 +49,7 @@ class SelectOrderCustomerRequest extends FormRequest
         return [
             'submission_key' => ['required', 'uuid'],
             'customer_type' => ['required', Rule::in(['existing', 'new'])],
-            'customer_id' => ['exclude_unless:customer_type,existing', 'required_if:customer_type,existing', 'integer', Rule::exists(Customer::class, 'id')],
+            'customer_id' => ['exclude_unless:customer_type,existing', 'bail', 'required_if:customer_type,existing', 'integer', Customer::visibleIdRule($this->user())],
             'customer_name' => ['exclude_unless:customer_type,new', 'required_if:customer_type,new', 'string', 'max:255'],
             'contact_person' => ['exclude_unless:customer_type,new', 'required_if:customer_type,new', 'string', 'max:255'],
             'address' => ['exclude_unless:customer_type,new', 'required_if:customer_type,new', 'string', 'max:2000'],

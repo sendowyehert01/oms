@@ -71,7 +71,7 @@ test('delivery completion and out of sequence actions cannot be forged', functio
 
 test('status edits are admin only even on an order staff can view', function (bool $visible): void {
     $staff = User::factory()->create();
-    $order = Order::factory()->hasItems(1)->create(['created_by' => $visible ? $staff->id : $this->admin->id]);
+    $order = Order::factory()->for(Customer::factory()->for($staff, 'creator'))->hasItems(1)->create(['created_by' => $visible ? $staff->id : $this->admin->id]);
     $this->actingAs($staff);
     $this->postJson(route('orders.status.update', $order), statusChangeData($order, 'start_production'))->assertStatus($visible ? 403 : 404);
     $this->assertDatabaseCount('order_status_histories', 0);
@@ -118,9 +118,12 @@ test('status and history roll back together if saving the order fails', function
 test('history is escaped paginated and visible to authorized staff without edit controls', function (): void {
     $staff = User::factory()->create();
     $client = Customer::factory()->for($staff, 'creator')->create();
-    $order = Order::factory()->for($client)->hasItems(1)->create(['status' => 'In production']);
+    $order = Order::factory()->for($client)->for($staff, 'creator')->hasItems(1)->create(['status' => 'In production']);
     OrderStatusHistory::factory()->count(12)->for($order)->create(['notes' => '<script>unsafe</script>']);
     $this->actingAs($staff);
-    $this->get(route('orders.show', $order))->assertOk()->assertSee('Status history')->assertSee('<script>unsafe</script>')->assertDontSee('<script>unsafe</script>', false)->assertDontSee('name="action"', false)->assertSee('history_page=2', false);
+    $this->get(route('orders.show', $order))->assertOk()->assertSee('Status history')
+        ->assertSee('<script>unsafe</script>')->assertDontSee('<script>unsafe</script>', false)
+        ->assertDontSee('action="'.route('orders.status.update', $order).'"', false)
+        ->assertSee('history_page=2', false);
     $this->get(route('orders.show', $order).'?history_page=2')->assertOk();
 });

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
@@ -101,7 +102,7 @@ test('delivery validates fields and reporting timezone date boundaries', functio
 
 test('staff may view delivery facts but cannot confirm or complete orders', function (bool $visible): void {
     $staff = User::factory()->create();
-    $order = deliveryOrder(['created_by' => $visible ? $staff->id : $this->admin->id]);
+    $order = deliveryOrder(['customer_id' => Customer::factory()->for($staff, 'creator'), 'created_by' => $visible ? $staff->id : $this->admin->id]);
     $this->actingAs($staff);
     foreach (['deliver', 'complete'] as $action) {
         $this->postJson(route('orders.status.update', $order), deliveryPayload($order, $action))->assertStatus($visible ? 403 : 404);

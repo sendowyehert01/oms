@@ -69,13 +69,16 @@ test('staff customer aggregates include only accessible orders and no hidden lin
     balanceOrder(['customer_id' => $shared->id, 'created_by' => $this->admin->id]);
     $owned = Customer::factory()->for($staff, 'creator')->create();
     balanceOrder(['customer_id' => $owned->id, 'created_by' => $this->admin->id]);
+    $ownOrder = balanceOrder(['customer_id' => $owned->id, 'created_by' => $staff->id]);
     $hidden = Customer::factory()->create(['company_name' => 'Hidden collection customer']);
     balanceOrder(['customer_id' => $hidden->id]);
     $this->actingAs($staff);
     $response = $this->get(route('balances.index'));
     $response->assertOk()->assertSee('These are not global customer balances')->assertDontSee('Hidden collection customer');
-    expect($response['data']['orders_count'])->toBe(2)->and($response['data']['outstanding_in_cents'])->toBe(25000);
-    expect($response['data']['customers']->firstWhere('id', $shared->id)->outstanding_in_cents)->toBe(12500);
+    expect($response['data']['orders_count'])->toBe(1)->and($response['data']['outstanding_in_cents'])->toBe(12500);
+    expect($response['data']['orders']->pluck('id')->all())->toBe([$ownOrder->id]);
+    expect($response['data']['customers']->modelKeys())->toBe([$owned->id]);
+    expect($response['data']['customers']->first()->outstanding_in_cents)->toBe(12500);
     $this->get(route('balances.index', ['customer_id' => $hidden->id]))->assertOk()->assertSee('No outstanding balances')->assertDontSee('Hidden collection customer');
 });
 
@@ -134,7 +137,7 @@ test('admin due date edits retain terms and are audited idempotent and revision 
 
 test('staff cannot edit due dates even for their own orders and hidden orders stay hidden', function (bool $visible): void {
     $staff = User::factory()->create();
-    $order = balanceOrder(['created_by' => $visible ? $staff->id : $this->admin->id]);
+    $order = balanceOrder(['customer_id' => Customer::factory()->for($staff, 'creator'), 'created_by' => $visible ? $staff->id : $this->admin->id]);
     $this->actingAs($staff);
     $this->postJson(route('orders.payment-due-date.update', $order), dueDatePayload($order))->assertStatus($visible ? 403 : 404);
     if ($visible) {
